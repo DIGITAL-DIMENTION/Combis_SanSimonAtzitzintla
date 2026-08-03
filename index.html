@@ -243,6 +243,7 @@
       <div>
         <p class="text-[11px] uppercase tracking-wider font-semibold" style="color:var(--ink-soft);">En este momento</p>
         <p id="freqText" class="font-display font-bold text-2xl leading-tight" style="color:var(--route-color);">Calculando…</p>
+        <p id="nextDepartureText" class="font-mono text-[12px] mt-1" style="color:var(--ink-soft);"></p>
       </div>
       <div class="w-11 h-11 rounded-full flex items-center justify-center text-xl shrink-0" style="background:var(--paper);">⏱️</div>
     </div>
@@ -257,6 +258,38 @@
         <p class="font-mono font-bold text-lg">9:30 PM</p>
       </div>
     </div>
+    <p class="text-[10px] mt-2" style="color:var(--ink-soft); opacity:.8;">*Hora de próxima salida estimada, no oficial. Confirma con el operador.</p>
+  </section>
+
+  <!-- TARIFAS -->
+  <section class="placard p-4" style="transform: rotate(0.25deg);">
+    <div class="flex items-center justify-between mb-3">
+      <h2 class="font-display font-semibold text-sm uppercase tracking-wide" style="color:var(--ink-soft);">Tarifas</h2>
+      <span class="text-lg">🪙</span>
+    </div>
+    <div class="grid grid-cols-2 gap-2.5">
+      <div class="rounded-xl p-3" style="background:var(--paper);">
+        <p class="text-[11px] font-semibold" style="color:var(--ink-soft);">Normal</p>
+        <p class="font-mono font-bold text-xl" style="color:var(--route-color);">$9</p>
+        <p class="text-[10px]" style="color:var(--ink-soft);">San Simón → San Martín</p>
+      </div>
+      <div class="rounded-xl p-3" style="background:var(--paper);">
+        <p class="text-[11px] font-semibold" style="color:var(--ink-soft);">Parada mínima</p>
+        <p class="font-mono font-bold text-xl" style="color:var(--route-color);">$8</p>
+        <p class="text-[10px]" style="color:var(--ink-soft);">Tramos cortos</p>
+      </div>
+      <div class="rounded-xl p-3" style="background:var(--paper);">
+        <p class="text-[11px] font-semibold" style="color:var(--ink-soft);">Estudiantes</p>
+        <p class="font-mono font-bold text-xl" style="color:var(--route-color);">$7</p>
+        <p class="text-[10px]" style="color:var(--ink-soft);">Con credencial</p>
+      </div>
+      <div class="rounded-xl p-3" style="background:var(--paper);">
+        <p class="text-[11px] font-semibold" style="color:var(--ink-soft);">Adulto mayor</p>
+        <p class="font-mono font-bold text-xl" style="color:var(--route-color);">$5</p>
+        <p class="text-[10px]" style="color:var(--ink-soft);">INAPAM / abuelitos</p>
+      </div>
+    </div>
+    <p class="text-[10px] mt-3" style="color:var(--ink-soft); opacity:.8;">*Tarifas de referencia, pueden variar ligeramente según el operador.</p>
   </section>
 
   <!-- ALERTA DE TIANGUIS -->
@@ -274,7 +307,8 @@
       <h2 class="font-display font-semibold text-sm uppercase tracking-wide" style="color:var(--ink-soft);">Mapa de la ruta</h2>
       <span id="mapRouteLabel" class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:var(--route-color); color:#fff;">Por Capilla</span>
     </div>
-    <div class="placard overflow-hidden">
+    <div class="placard overflow-hidden relative">
+      <span id="combiDirectionBadge" class="absolute top-2.5 left-2.5 z-[500] text-[11px] font-semibold px-2.5 py-1.5 rounded-full font-display" style="background:var(--paper); border:2px solid var(--route-color); color:var(--route-color); box-shadow:var(--shadow);"></span>
       <div id="map"></div>
     </div>
   </section>
@@ -489,6 +523,16 @@ document.getElementById('themeToggle').addEventListener('click', () => {
 /* ============================================================
    FRECUENCIA SEGÚN LA HORA
    ============================================================ */
+function frequencyBucket(h){
+  if (h < 5.5 || h >= 21.5) return { outOfService: true };
+  if (h >= 7 && h < 9.5)     return { text: 'Cada 5 - 8 min (hora pico)', avg: 6.5 };
+  if (h >= 16 && h < 19.5)   return { text: 'Cada 5 - 8 min (hora pico)', avg: 6.5 };
+  if (h >= 9.5 && h < 13)    return { text: 'Cada 10 - 12 min', avg: 11 };
+  if (h >= 13 && h < 16)     return { text: 'Cada 8 - 10 min', avg: 9 };
+  if (h >= 19.5 && h < 21.5) return { text: 'Cada 12 - 18 min', avg: 15 };
+  return { text: 'Cada 15 - 20 min', avg: 17 };
+}
+
 function computeFrequency(){
   const now = new Date();
   const h = now.getHours() + now.getMinutes() / 60;
@@ -501,16 +545,55 @@ function computeFrequency(){
     const mins = h < 5.5 ? Math.round((5.5 - h) * 60) : Math.round((29.5 - h) * 60);
     return `Fuera de servicio · sale en ${Math.floor(mins/60) > 0 ? Math.floor(mins/60)+'h ' : ''}${mins % 60}min`;
   }
-  if (h >= 7 && h < 9.5)   return 'Cada 5 - 8 min (hora pico)';
-  if (h >= 16 && h < 19.5) return 'Cada 5 - 8 min (hora pico)';
-  if (h >= 9.5 && h < 13)  return 'Cada 10 - 12 min';
-  if (h >= 13 && h < 16)   return 'Cada 8 - 10 min';
-  if (h >= 19.5 && h < 21.5) return 'Cada 12 - 18 min';
-  return 'Cada 15 - 20 min';
+  return frequencyBucket(h).text;
+}
+
+/* ============================================================
+   PRÓXIMA SALIDA APROXIMADA
+   Secundaria sale primero en cada ciclo; Capilla sale ~8 min después.
+   Es un estimado basado en la frecuencia promedio del horario, no un
+   horario oficial de choferes.
+   ============================================================ */
+const CAPILLA_OFFSET_MIN = 8;
+const SERVICE_ANCHOR_HOUR = 5.5; // 5:30 AM, arranque de servicio
+
+function nextDepartureEstimate(){
+  const now = new Date();
+  const h = now.getHours() + now.getMinutes() / 60;
+  const bucket = frequencyBucket(h);
+  if (bucket.outOfService) return null;
+
+  const anchor = new Date(now);
+  anchor.setHours(5, 30, 0, 0);
+  const minsSinceAnchor = (now - anchor) / 60000;
+  const avg = bucket.avg;
+  const slots = Math.ceil((minsSinceAnchor + 0.01) / avg);
+  const nextSecundaria = new Date(anchor.getTime() + slots * avg * 60000);
+  const nextCapilla = new Date(nextSecundaria.getTime() + CAPILLA_OFFSET_MIN * 60000);
+
+  return { secundaria: nextSecundaria, capilla: nextCapilla };
+}
+
+function formatHora(date){
+  return date.toLocaleTimeString('es-MX', { hour: 'numeric', minute: '2-digit' });
+}
+
+function updateNextDeparture(){
+  const el = document.getElementById('nextDepartureText');
+  const est = nextDepartureEstimate();
+  if (!est) { el.innerHTML = ''; return; }
+
+  const secOn = currentRoute === 'secundaria';
+  const capOn = currentRoute === 'capilla';
+  const secStyle = secOn ? 'color:var(--route-color); font-weight:700;' : 'color:var(--ink-soft); font-weight:500;';
+  const capStyle = capOn ? 'color:var(--route-color); font-weight:700;' : 'color:var(--ink-soft); font-weight:500;';
+
+  el.innerHTML = `🕒 Próxima salida aprox · <span style="${secStyle}">Secundaria ${formatHora(est.secundaria)}</span> → <span style="${capStyle}">Capilla ${formatHora(est.capilla)}</span> <span style="opacity:.75;">(sale ~8 min después)</span>`;
 }
 
 function updateFrequency(){
   document.getElementById('freqText').textContent = computeFrequency();
+  updateNextDeparture();
 }
 updateFrequency();
 setInterval(updateFrequency, 60000);
@@ -553,6 +636,14 @@ function pathDistances(path){
   return { latlngs, dist, total: dist[dist.length - 1] || 1 };
 }
 
+function updateDirectionBadge(route, reverse){
+  const badge = document.getElementById('combiDirectionBadge');
+  if (!badge) return;
+  const origin = route.stops[0].name;
+  const dest = route.stops[route.stops.length - 1].name;
+  badge.textContent = reverse ? `🚐 ← Regresando a ${origin}` : `🚐 → Rumbo a ${dest}`;
+}
+
 function startCombiAnimation(route){
   if (combiAnimId) cancelAnimationFrame(combiAnimId);
   if (combiMarker) { map.removeLayer(combiMarker); combiMarker = null; }
@@ -562,6 +653,9 @@ function startCombiAnimation(route){
 
   const color = root.classList.contains('dark') ? route.colorDark : route.color;
   combiMarker = L.marker(latlngs[0], { icon: combiIcon(color), zIndexOffset: 1000, interactive: false }).addTo(map);
+
+  let lastReverse = false;
+  updateDirectionBadge(route, lastReverse);
 
   // Recorre la ruta completa (ida y vuelta) en ~34 segundos, solo como referencia visual.
   const loopSeconds = 34;
@@ -574,6 +668,11 @@ function startCombiAnimation(route){
     let traveled = (elapsed * speed) % (total * 2);
     const reverse = traveled > total;
     if (reverse) traveled = total * 2 - traveled;
+
+    if (reverse !== lastReverse) {
+      lastReverse = reverse;
+      updateDirectionBadge(route, reverse);
+    }
 
     let idx = 0;
     while (idx < dist.length - 2 && dist[idx + 1] < traveled) idx++;
@@ -737,6 +836,7 @@ function setRoute(routeKey){
 
   renderRoute();
   renderStopsList();
+  updateNextDeparture();
 
   if (changed) {
     buzz(20);
