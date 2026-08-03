@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1C4E73">
+<title>Panel del Dueño · Ruta San Simón (R-18)</title>
+<meta name="robots" content="noindex, nofollow">
+
+<link rel="icon" href="icon-192.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+
+<style>
+  :root{
+    --paper:#F5EEDD; --paper-2:#EBE1C9; --ink:#241D14; --ink-soft:#5B5040;
+    --talavera:#1C4E73; --agave:#3E7A47; --agave-dark:#2C5833;
+    --alerta:#B23A2E; --alerta-bg:#F6DED9; --border:#D8CBA6;
+    --shadow: 0 2px 0 rgba(36,29,20,0.08);
+  }
+  *{ -webkit-tap-highlight-color: transparent; }
+  body{ background:var(--paper); color:var(--ink); font-family:'Inter', sans-serif; }
+  .font-display{ font-family:'Oswald', sans-serif; }
+  .font-mono{ font-family:'JetBrains Mono', monospace; }
+  .placard{ background:var(--paper-2); border:2px solid var(--border); border-radius:16px; box-shadow:var(--shadow); }
+  #map{ height:280px; width:100%; background:var(--paper-2); }
+  .leaflet-container{ font-family:'Inter', sans-serif; background:var(--paper-2) !important; }
+
+  .status-dot{ width:10px; height:10px; border-radius:50%; display:inline-block; }
+  .status-dot.on{ background:#2C9E4A; box-shadow:0 0 0 3px rgba(44,158,74,.25); }
+  .status-dot.off{ background:var(--ink-soft); opacity:.5; }
+
+  .alert-card{ border:2px solid var(--alerta); background:var(--alerta-bg); border-radius:14px; }
+  .alert-card.resolved{ border-color:var(--border); background:var(--paper-2); opacity:.7; }
+
+  @keyframes flash{
+    0%, 100%{ background-color:var(--alerta-bg); }
+    50%{ background-color:#F0AFA5; }
+  }
+  .alert-card.flashing{ animation: flash 1s ease-in-out 3; }
+</style>
+</head>
+<body class="font-body pb-10">
+
+<!-- PANTALLA DE PIN -->
+<div id="pinScreen" class="min-h-screen flex items-center justify-center px-6">
+  <div class="placard p-6 w-full max-w-sm text-center">
+    <p class="text-4xl mb-2">🔑</p>
+    <h1 class="font-display font-semibold text-xl">Panel del Dueño</h1>
+    <p class="text-sm mt-1" style="color:var(--ink-soft);">Ruta San Simón · R-18</p>
+    <input id="pinInput" type="password" inputmode="numeric" placeholder="PIN"
+           class="mt-5 w-full text-center text-2xl font-mono py-3 rounded-xl border-2"
+           style="background:var(--paper); border-color:var(--border); color:var(--ink);">
+    <p id="pinError" class="text-sm mt-2 hidden" style="color:var(--alerta);">PIN incorrecto, intenta otra vez.</p>
+    <button id="pinSubmit" class="mt-4 w-full py-3 rounded-xl font-display font-semibold" style="background:var(--talavera); color:#fff;">Entrar</button>
+  </div>
+</div>
+
+<!-- PANEL PRINCIPAL -->
+<div id="mainScreen" class="hidden max-w-md mx-auto px-4 pt-6 space-y-4">
+  <header class="text-center mb-2">
+    <h1 class="font-display font-semibold text-xl">Panel del Dueño</h1>
+    <p class="text-sm" style="color:var(--ink-soft);">Ruta San Simón · R-18</p>
+  </header>
+
+  <div id="firebaseWarning" class="hidden placard p-4 text-sm text-center" style="border-color:var(--alerta); background:var(--alerta-bg); color:var(--alerta);">
+    Firebase no está configurado todavía (archivo firebase-config.js).
+  </div>
+
+  <!-- ESTADO DEL CONDUCTOR -->
+  <section class="placard p-4">
+    <div class="flex items-center justify-between">
+      <h2 class="font-display font-semibold text-sm uppercase tracking-wide" style="color:var(--ink-soft);">Conductor</h2>
+      <span id="driverStatusBadge" class="flex items-center gap-1.5 text-xs font-semibold">
+        <span class="status-dot off"></span> <span id="driverStatusText">Sin conexión</span>
+      </span>
+    </div>
+    <p class="font-display font-semibold text-lg mt-1">👤 Pedro</p>
+    <p id="driverUpdatedText" class="text-xs font-mono mt-0.5" style="color:var(--ink-soft);">—</p>
+  </section>
+
+  <!-- MAPA -->
+  <section class="placard overflow-hidden">
+    <div id="map"></div>
+  </section>
+
+  <!-- ALERTAS -->
+  <section>
+    <h2 class="font-display font-semibold text-sm uppercase tracking-wide mb-2" style="color:var(--ink-soft);">Alertas de ayuda</h2>
+    <div id="alertsEmpty" class="placard p-4 text-sm text-center" style="color:var(--ink-soft);">
+      No hay alertas por ahora. 🙌
+    </div>
+    <div id="alertsList" class="space-y-2.5"></div>
+  </section>
+</div>
+
+<script>
+const pinScreen = document.getElementById('pinScreen');
+const mainScreen = document.getElementById('mainScreen');
+const pinInput = document.getElementById('pinInput');
+const pinError = document.getElementById('pinError');
+let map, driverMarker;
+
+function unlock(){
+  pinScreen.classList.add('hidden');
+  mainScreen.classList.remove('hidden');
+  initMap();
+  initFirebaseListeners();
+}
+
+if (localStorage.getItem('rss_panel_unlocked') === 'true') {
+  unlock();
+}
+
+document.getElementById('pinSubmit').addEventListener('click', tryPin);
+pinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryPin(); });
+
+function tryPin(){
+  const expected = (typeof PANEL_PIN !== 'undefined') ? PANEL_PIN : null;
+  if (expected !== null && pinInput.value === expected) {
+    localStorage.setItem('rss_panel_unlocked', 'true');
+    pinError.classList.add('hidden');
+    unlock();
+  } else {
+    pinError.classList.remove('hidden');
+  }
+}
+
+function initMap(){
+  map = L.map('map', { zoomControl: true, attributionControl: false }).setView([19.272, -98.455], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+  L.control.attribution({ prefix: false })
+    .addAttribution('© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>')
+    .addTo(map);
+}
+
+function driverIcon(){
+  return L.divIcon({
+    className: '',
+    html: `<div style="width:32px;height:32px;border-radius:50%;background:#2C9E4A;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,.4);">🚐</div>`,
+    iconSize: [32, 32],
+    iconAnchor: [16, 16],
+  });
+}
+
+/* ============================================================
+   FIREBASE: estado del conductor + alertas de pánico
+   ============================================================ */
+let audioCtx;
+function beep(){
+  try{
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    [0, 0.3, 0.6].forEach((delay) => {
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = 'square';
+      osc.frequency.value = 880;
+      const t0 = audioCtx.currentTime + delay;
+      gain.gain.setValueAtTime(0.0001, t0);
+      gain.gain.linearRampToValueAtTime(0.15, t0 + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.25);
+      osc.connect(gain).connect(audioCtx.destination);
+      osc.start(t0);
+      osc.stop(t0 + 0.3);
+    });
+  } catch(e) {}
+}
+
+let seenAlertIds = new Set();
+let firstAlertsLoad = true;
+
+function initFirebaseListeners(){
+  if (typeof db === 'undefined' || !db) {
+    document.getElementById('firebaseWarning').classList.remove('hidden');
+    return;
+  }
+
+  // --- Estado del conductor ---
+  db.ref('driverLocation/pedro').on('value', (snapshot) => {
+    const data = snapshot.val();
+    const badgeDot = document.querySelector('#driverStatusBadge .status-dot');
+    const statusText = document.getElementById('driverStatusText');
+    const updatedText = document.getElementById('driverUpdatedText');
+
+    const isFresh = !!(data && data.active && data.updatedAt && (Date.now() - data.updatedAt < 2 * 60 * 1000));
+
+    if (isFresh) {
+      badgeDot.classList.remove('off'); badgeDot.classList.add('on');
+      statusText.textContent = 'En ruta';
+      updatedText.textContent = 'Última actualización: ' + new Date(data.updatedAt).toLocaleTimeString('es-MX');
+
+      const latlng = [data.lat, data.lng];
+      if (!driverMarker) {
+        driverMarker = L.marker(latlng, { icon: driverIcon() }).addTo(map);
+        map.setView(latlng, 15);
+      } else {
+        driverMarker.setLatLng(latlng);
+      }
+    } else {
+      badgeDot.classList.add('off'); badgeDot.classList.remove('on');
+      statusText.textContent = 'Sin conexión';
+      updatedText.textContent = data && data.updatedAt ? 'Última vez: ' + new Date(data.updatedAt).toLocaleString('es-MX') : '—';
+      if (driverMarker) { map.removeLayer(driverMarker); driverMarker = null; }
+    }
+  });
+
+  // --- Alertas de ayuda ---
+  db.ref('panicAlerts').orderByChild('createdAt').on('value', (snapshot) => {
+    const alerts = [];
+    snapshot.forEach((child) => {
+      alerts.push({ id: child.key, ...child.val() });
+    });
+    alerts.reverse(); // más recientes primero
+
+    const isNewPending = alerts.some(a => a.status === 'pendiente' && !seenAlertIds.has(a.id));
+    if (isNewPending && !firstAlertsLoad) {
+      beep();
+      if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+    }
+    alerts.forEach(a => seenAlertIds.add(a.id));
+    firstAlertsLoad = false;
+
+    renderAlerts(alerts);
+  });
+}
+
+function renderAlerts(alerts){
+  const list = document.getElementById('alertsList');
+  const empty = document.getElementById('alertsEmpty');
+  list.innerHTML = '';
+
+  if (!alerts.length) {
+    empty.classList.remove('hidden');
+    return;
+  }
+  empty.classList.add('hidden');
+
+  alerts.forEach((a) => {
+    const isPending = a.status === 'pendiente';
+    const time = a.createdAt ? new Date(a.createdAt).toLocaleString('es-MX') : '—';
+    const mapsUrl = (a.lat != null && a.lng != null) ? `https://www.google.com/maps?q=${a.lat},${a.lng}` : null;
+
+    const card = document.createElement('div');
+    card.className = 'alert-card p-3.5' + (isPending ? '' : ' resolved');
+    card.innerHTML = `
+      <div class="flex items-start justify-between gap-2">
+        <div>
+          <p class="font-display font-semibold text-sm" style="color:${isPending ? 'var(--alerta)' : 'var(--ink-soft)'};">
+            ${isPending ? '🆘 Alerta activa' : '✅ Atendida'}
+          </p>
+          <p class="text-xs font-mono mt-0.5" style="color:var(--ink-soft);">${time}${a.route ? ' · ramal ' + a.route : ''}</p>
+        </div>
+      </div>
+      <div class="flex gap-2 mt-3">
+        ${mapsUrl ? `<a href="${mapsUrl}" target="_blank" rel="noopener" class="text-xs font-semibold px-3 py-2 rounded-full" style="background:var(--talavera); color:#fff;">📍 Ver ubicación</a>` : `<span class="text-xs" style="color:var(--ink-soft);">Sin ubicación</span>`}
+        ${isPending ? `<button class="resolve-btn text-xs font-semibold px-3 py-2 rounded-full" style="background:var(--agave); color:#fff;" data-id="${a.id}">Marcar atendida</button>` : ''}
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  list.querySelectorAll('.resolve-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const id = btn.dataset.id;
+      db.ref('panicAlerts/' + id).update({ status: 'atendida' }).catch(() => {});
+    });
+  });
+}
+</script>
+</body>
+</html>
