@@ -201,7 +201,7 @@
       </button>
       <button data-route="secundaria" class="route-btn rounded-2xl py-3.5 font-display font-semibold text-[15px] leading-tight">
         Por Secundaria
-        <span class="block text-[11px] font-body font-normal opacity-90 mt-0.5">Las Minas · San José</span>
+        <span class="block text-[11px] font-body font-normal opacity-90 mt-0.5">Hacienda San José · Tlanalapan</span>
       </button>
     </div>
   </section>
@@ -295,25 +295,41 @@ const ROUTES = {
     color: '#3E7A47',
     colorDark: '#2C5833',
     label: 'Por Secundaria',
+    // Trazado real capturado sobre Av. Guadalupe Victoria → Av. Sur → C. Nacional →
+    // Revolución Nte. → San Salvador el Verde / Cam. Real Iztaccíhuatl, hacia San Rafael Tlanalapan.
     path: [
-      [19.2960, -98.4460],
-      [19.2972, -98.4432],
-      [19.2985, -98.4402],
-      [19.2990, -98.4380],
-      [19.2978, -98.4352],
-      [19.2958, -98.4326],
-      [19.2938, -98.4318],
-      [19.2912, -98.4306],
-      [19.2900, -98.4300],
-      [19.2868, -98.4314],
-      [19.2830, -98.4335]
+      [19.260428, -98.475840], // Base San Simón (Av. Guadalupe Victoria)
+      [19.260664, -98.474837],
+      [19.260535, -98.474477],
+      [19.260508, -98.474244], // da vuelta hacia Av. Sur
+      [19.260740, -98.473811],
+      [19.261028, -98.473836],
+      [19.261647, -98.473744],
+      [19.262022, -98.473820],
+      [19.262081, -98.473688],
+      [19.263699, -98.474139],
+      [19.263627, -98.473846],
+      [19.264675, -98.473808],
+      [19.265169, -98.474231], // entra a C. Nacional
+      [19.264938, -98.474847],
+      [19.265186, -98.477161],
+      [19.265219, -98.477719],
+      [19.265167, -98.479308],
+      [19.265640, -98.479695], // Revolución Nte.
+      [19.267022, -98.479656], // Hacienda San José
+      [19.268523, -98.479782],
+      [19.267638, -98.476457],
+      [19.266406, -98.482229],
+      [19.268338, -98.471808],
+      [19.268886, -98.471208],
+      [19.272867, -98.458108]  // entrada a San Rafael Tlanalapan
     ],
     stops: [
-      { name: 'Base San Simón', lat: 19.2960, lng: -98.4460, desc: 'Punto de salida. Aquí inicia y termina la corrida. Sube desde temprano.' },
-      { name: 'Fracc. Las Minas', lat: 19.2990, lng: -98.4380, desc: 'Entrada principal del fraccionamiento Las Minas.' },
-      { name: 'San José', lat: 19.2938, lng: -98.4318, desc: 'Colonia San José, parada junto a la tienda de abarrotes grande.' },
-      { name: 'La Caja de Agua', lat: 19.2900, lng: -98.4300, desc: 'Referencia: el tanque elevado de agua junto a la avenida.' },
-      { name: 'Centro San Martín', lat: 19.2830, lng: -98.4335, desc: 'Parada final frente al mercado municipal, a 2 cuadras del zócalo.' }
+      { name: 'Base San Simón', lat: 19.260428, lng: -98.475840, desc: 'Av. Guadalupe Victoria, San Simón Atzitzintla. Punto de salida, sube desde temprano.' },
+      { name: 'Vuelta a Av. Sur', lat: 19.260508, lng: -98.474244, desc: 'Esquina de Av. Guadalupe Victoria y Av. Sur, donde la combi da vuelta.' },
+      { name: 'Hacienda San José', lat: 19.267022, lng: -98.479656, desc: 'Sobre Revolución Nte., hace parada frente a la Hacienda San José.' },
+      { name: 'San Salvador el Verde', lat: 19.268523, lng: -98.479782, desc: 'Tramo por la calle San Salvador el Verde, antes de tomar Camino Real Iztaccíhuatl.' },
+      { name: 'Entrada a San Rafael Tlanalapan', lat: 19.272867, lng: -98.458108, desc: 'Camino Real Iztaccíhuatl, entrada a San Rafael Tlanalapan.' }
     ]
   }
 };
