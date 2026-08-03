@@ -254,7 +254,7 @@
     <div class="grid grid-cols-2 gap-3">
       <button data-route="capilla" class="route-btn active rounded-2xl py-3.5 font-display font-semibold text-[15px] leading-tight">
         Por Capilla
-        <span class="block text-[11px] font-body font-normal opacity-90 mt-0.5">Capilla · Los Arcos</span>
+        <span class="block text-[11px] font-body font-normal opacity-90 mt-0.5">La Capilla · Central</span>
       </button>
       <button data-route="secundaria" class="route-btn rounded-2xl py-3.5 font-display font-semibold text-[15px] leading-tight">
         Por Secundaria
@@ -370,25 +370,43 @@ const ROUTES = {
     color: '#E07A1A',
     colorDark: '#B15E11',
     label: 'Por Capilla',
+    // Trazado real: Av. Guadalupe Victoria → 2A de Guadalupe Victoria → Adolfo López Mateos →
+    // Tercera de Allende → C. Aldama → C. Manuel Padre Montés → Av. Sur → Calle Nacional Ote. →
+    // 16 de Septiembre → 5 de Mayo → Avenida Nte. → La Capilla, y de ahí se une al mismo
+    // tramo del ramal Secundaria (Cam. Real Iztaccíhuatl / San Salvador el Verde) hasta la Central.
     path: [
-      [19.2960, -98.4460],
-      [19.2946, -98.4441],
-      [19.2928, -98.4418],
-      [19.2910, -98.4400],
-      [19.2894, -98.4382],
-      [19.2872, -98.4358],
-      [19.2850, -98.4340],
-      [19.2822, -98.4312],
-      [19.2790, -98.4285],
-      [19.2808, -98.4260],
-      [19.2830, -98.4335]
+      [19.260428, -98.475840], // Base San Simón (Av. Guadalupe Victoria)
+      [19.261700, -98.475000], // aprox. 2A de Guadalupe Victoria / Adolfo López Mateos, pendiente afinar
+      [19.263000, -98.474400], // aprox. Tercera de Allende / C. Aldama, pendiente afinar
+      [19.264300, -98.473500], // aprox. C. Manuel Padre Montés / Av. Sur, pendiente afinar
+      [19.265036463787542, -98.47279677976911], // Centro de Salud y Campo Deportivo
+      [19.265036463787542, -98.47279677976911], // Iglesia San Simón y Plaza (mismo punto dado, confirmar si es otra ubicación)
+      [19.266500, -98.473600], // aprox. 16 de Septiembre / 5 de Mayo, pendiente afinar
+      [19.267305412889165, -98.47392478914037], // La Capilla, entrada al pueblo
+      [19.269500, -98.465000], // aprox. tramo hacia Cam. Real Iztaccíhuatl, pendiente afinar
+      [19.272046787005376, -98.46081561175298], // entrada a San Rafael Tlanalapan
+      [19.27267554685216, -98.4589748845061], // Los Arcos
+      [19.273297956240363, -98.4576530200491], // Caja de agua
+      [19.274398635598594, -98.45436098967812], // El Libramiento
+      [19.276800, -98.448500], // aprox. Cam. Real Iztaccíhuatl / San Salvador el Verde, pendiente afinar
+      [19.279387085913882, -98.44208837241015], // Módulo de vigilancia
+      [19.280500, -98.439700], // aprox. Agustín Lara / San Salvador el Verde, pendiente afinar
+      [19.28161584992344, -98.43741861590993], // Secundaria La Uno (Av. México)
+      [19.280700, -98.436000], // aprox. Av. México / Carr. Federal México-Puebla, pendiente afinar
+      [19.279755881243926, -98.43447995257797] // Central de Autobuses (AU), Carr. Internacional
     ],
     stops: [
-      { name: 'Base San Simón', lat: 19.2960, lng: -98.4460, desc: 'Punto de salida. Aquí inicia y termina la corrida. Sube desde temprano.' },
-      { name: 'La Capilla', lat: 19.2910, lng: -98.4400, desc: 'Capilla de San Simón, justo atrás de la iglesia. Parada muy solicitada.' },
-      { name: 'Los Arcos', lat: 19.2850, lng: -98.4340, desc: 'Cruce de Los Arcos. Bájate aquí si vas hacia la vía rápida.' },
-      { name: 'Entrada a Tlalnepantla', lat: 19.2790, lng: -98.4285, desc: 'Entronque hacia Tlalnepantla. Combi reduce velocidad para el giro.' },
-      { name: 'Centro San Martín', lat: 19.2830, lng: -98.4335, desc: 'Parada final frente al mercado municipal, a 2 cuadras del zócalo.' }
+      { name: 'Base San Simón', lat: 19.260428, lng: -98.475840, desc: 'Av. Guadalupe Victoria, San Simón Atzitzintla. Punto de salida, sube desde temprano.' },
+      { name: 'Centro de Salud y Campo Deportivo', lat: 19.265036463787542, lng: -98.47279677976911, desc: 'Sobre Av. Sur, junto al centro de salud y el campo deportivo.' },
+      { name: 'Iglesia San Simón y Plaza', lat: 19.265036463787542, lng: -98.47279677976911, desc: 'Iglesia y plaza principal de San Simón (mismo punto dado; confirmar si es otra ubicación cercana).' },
+      { name: 'La Capilla', lat: 19.267305412889165, lng: -98.47392478914037, desc: 'Capilla de San Simón, entrada al pueblo. Parada muy solicitada.' },
+      { name: 'Entrada a San Rafael Tlanalapan', lat: 19.272046787005376, lng: -98.46081561175298, desc: 'Camino Real Iztaccíhuatl, entrada a San Rafael Tlanalapan.' },
+      { name: 'Los Arcos', lat: 19.27267554685216, lng: -98.4589748845061, desc: 'Parada Los Arcos, justo después de la entrada a San Rafael Tlanalapan.' },
+      { name: 'Caja de Agua', lat: 19.273297956240363, lng: -98.4576530200491, desc: 'Parada Caja de Agua, sobre Camino Real Iztaccíhuatl.' },
+      { name: 'El Libramiento', lat: 19.274398635598594, lng: -98.45436098967812, desc: 'Cruce con el libramiento, ya entrando hacia San Martín.' },
+      { name: 'Módulo de Vigilancia', lat: 19.279387085913882, lng: -98.44208837241015, desc: 'Parada frente al módulo de vigilancia, sobre Camino Real Iztaccíhuatl / San Salvador el Verde.' },
+      { name: 'Secundaria La Uno', lat: 19.28161584992344, lng: -98.43741861590993, desc: 'Parada frente a la Secundaria No. 1, sobre Av. México.' },
+      { name: 'Central de Autobuses', lat: 19.279755881243926, lng: -98.43447995257797, desc: 'Parada final en la Central de Autobuses (AU), sobre Carr. Internacional.' }
     ]
   },
   secundaria: {
