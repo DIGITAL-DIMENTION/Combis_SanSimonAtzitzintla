@@ -284,7 +284,7 @@
         <p class="font-mono font-bold text-lg">9:30 PM</p>
       </div>
     </div>
-    <p class="text-[10px] mt-2" style="color:var(--ink-soft); opacity:.8;">*Hora de próxima salida estimada, no oficial. Confirma con el operador.</p>
+    <p class="text-[10px] mt-2" style="color:var(--ink-soft); opacity:.8;">*Hora de próxima salida estimada, recuerde que es un aproximado.</p>
   </section>
 
   <!-- TARIFAS -->
@@ -317,7 +317,7 @@
     </div>
     <p class="text-[10px] mt-3" style="color:var(--ink-soft); opacity:.8;">*Tarifas de referencia, pueden variar ligeramente según el operador.</p>
     <p class="text-[11px] mt-2 flex items-center gap-1.5" style="color:var(--ink-soft);">
-      <span>ℹ️</span> Lunes, martes y jueves la combi llega hasta la Central de Autobuses.
+      <span>ℹ️</span> Lunes, martes y jueves la combi llega hasta la Central (mercado).
     </p>
   </section>
 
@@ -379,8 +379,8 @@ const ROUTES = {
       [19.261700, -98.475000], // aprox. 2A de Guadalupe Victoria / Adolfo López Mateos, pendiente afinar
       [19.263000, -98.474400], // aprox. Tercera de Allende / C. Aldama, pendiente afinar
       [19.264300, -98.473500], // aprox. C. Manuel Padre Montés / Av. Sur, pendiente afinar
-      [19.265036463787542, -98.47279677976911], // Centro de Salud y Campo Deportivo
-      [19.265036463787542, -98.47279677976911], // Iglesia San Simón y Plaza (mismo punto dado, confirmar si es otra ubicación)
+      [19.26266319415861, -98.473783073471], // Centro de Salud y Campo Deportivo
+      [19.26503592756045, -98.47278593212418], // Iglesia San Simón y Plaza
       [19.266500, -98.473600], // aprox. 16 de Septiembre / 5 de Mayo, pendiente afinar
       [19.267305412889165, -98.47392478914037], // La Capilla, entrada al pueblo
       [19.269500, -98.465000], // aprox. tramo hacia Cam. Real Iztaccíhuatl, pendiente afinar
@@ -397,8 +397,8 @@ const ROUTES = {
     ],
     stops: [
       { name: 'Base San Simón', lat: 19.260428, lng: -98.475840, desc: 'Av. Guadalupe Victoria, San Simón Atzitzintla. Punto de salida, sube desde temprano.' },
-      { name: 'Centro de Salud y Campo Deportivo', lat: 19.265036463787542, lng: -98.47279677976911, desc: 'Sobre Av. Sur, junto al centro de salud y el campo deportivo.' },
-      { name: 'Iglesia San Simón y Plaza', lat: 19.265036463787542, lng: -98.47279677976911, desc: 'Iglesia y plaza principal de San Simón (mismo punto dado; confirmar si es otra ubicación cercana).' },
+      { name: 'Centro de Salud y Campo Deportivo', lat: 19.26266319415861, lng: -98.473783073471, desc: 'Sobre Av. Sur, junto al centro de salud y el campo deportivo.' },
+      { name: 'Iglesia San Simón y Plaza', lat: 19.26503592756045, lng: -98.47278593212418, desc: 'Iglesia y plaza principal de San Simón.' },
       { name: 'La Capilla', lat: 19.267305412889165, lng: -98.47392478914037, desc: 'Capilla de San Simón, entrada al pueblo. Parada muy solicitada.' },
       { name: 'Entrada a San Rafael Tlanalapan', lat: 19.272046787005376, lng: -98.46081561175298, desc: 'Camino Real Iztaccíhuatl, entrada a San Rafael Tlanalapan.' },
       { name: 'Los Arcos', lat: 19.27267554685216, lng: -98.4589748845061, desc: 'Parada Los Arcos, justo después de la entrada a San Rafael Tlanalapan.' },
