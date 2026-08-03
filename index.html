@@ -40,6 +40,11 @@
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 
+<!-- Firebase (para ubicación en vivo del conductor y botón de ayuda) -->
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.13.2/firebase-database-compat.js"></script>
+<script src="firebase-config.js"></script>
+
 <style>
   :root{
     --paper:#F5EEDD;
@@ -207,6 +212,56 @@
     pointer-events:none; z-index:60;
   }
 
+  /* Combi EN VIVO (posición real mandada por el conductor vía Firebase) */
+  .live-marker{
+    width:34px; height:34px;
+    border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 2px 8px rgba(0,0,0,.5);
+    border: 3px solid #fff;
+    font-size:17px;
+    background:#2C9E4A;
+    position:relative;
+  }
+  .live-marker::after{
+    content:'';
+    position:absolute;
+    inset:-8px;
+    border-radius:50%;
+    background:rgba(44,158,74,.35);
+    animation: userPulse 1.6s ease-out infinite;
+  }
+  #liveDriverBadge{
+    position:absolute; top:2.5rem; left:0.625rem; z-index:500;
+    font-size:11px; font-weight:600; padding:5px 10px; border-radius:999px;
+    background:#2C9E4A; color:#fff; display:none; align-items:center; gap:5px;
+    box-shadow:var(--shadow); font-family:'Oswald', sans-serif;
+  }
+  #liveDriverBadge.show{ display:flex; }
+  #liveDriverBadge .dot{ width:7px; height:7px; border-radius:50%; background:#fff; animation:userPulse 1.4s ease-out infinite; }
+
+  /* Botón de ayuda / pánico */
+  #panicBtn{
+    position:fixed; right:16px; bottom:16px; z-index:55;
+    width:58px; height:58px; border-radius:50%;
+    background:var(--alerta); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:24px; box-shadow:0 4px 14px rgba(0,0,0,.35);
+    border:3px solid #fff;
+  }
+  #panicOverlay{
+    position:fixed; inset:0; z-index:70;
+    background:rgba(0,0,0,.55);
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  #panicOverlay.show{ display:flex; }
+  #panicSheet{
+    width:100%; max-width:28rem;
+    background:var(--paper); border-radius:20px 20px 0 0;
+    padding:1.5rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
+    border-top:2px solid var(--border);
+  }
+
   @media (prefers-reduced-motion: reduce){
     *{ transition: none !important; animation: none !important; }
     .combi-emoji{ transition:none !important; }
@@ -232,7 +287,10 @@
         </svg>
       </button>
       <div>
-        <h1 class="font-display font-semibold text-lg leading-tight">Ruta San Simón</h1>
+        <h1 class="font-display font-semibold text-lg leading-tight flex items-center gap-1.5">
+          Ruta San Simón
+          <span class="text-[10px] font-mono font-bold px-1.5 py-[3px] rounded" style="background:var(--talavera); color:#fff; letter-spacing:.02em;">R-18</span>
+        </h1>
         <p class="text-xs leading-tight" style="color:var(--ink-soft);">San Simón → San Martín Texmelucan</p>
       </div>
     </div>
@@ -343,6 +401,7 @@
     </div>
     <div class="placard overflow-hidden relative">
       <span id="combiDirectionBadge" class="absolute top-2.5 left-2.5 z-[500] text-[11px] font-semibold px-2.5 py-1.5 rounded-full font-display" style="background:var(--paper); border:2px solid var(--route-color); color:var(--route-color); box-shadow:var(--shadow);"></span>
+      <span id="liveDriverBadge"><span class="dot"></span> Pedro va en vivo</span>
       <div id="map"></div>
     </div>
     <p id="locateStatus" class="text-[11px] mt-1.5 hidden" style="color:var(--ink-soft);"></p>
@@ -356,8 +415,51 @@
 
   <footer class="text-center text-[11px] pt-2 pb-4" style="color:var(--ink-soft);">
     Horarios y frecuencias de referencia · Confirma con el operador en ruta.
+    <br>
+    <a href="conductor.html" style="color:var(--ink-soft); text-decoration:underline; opacity:.7;">Panel del conductor</a>
+    ·
+    <a href="dueno.html" style="color:var(--ink-soft); text-decoration:underline; opacity:.7;">Panel del dueño</a>
   </footer>
 </main>
+
+<!-- BOTÓN DE AYUDA / PÁNICO -->
+<button id="panicBtn" aria-label="Botón de ayuda">🆘</button>
+
+<div id="panicOverlay">
+  <div id="panicSheet">
+    <div id="panicStepAsk">
+      <p class="font-display font-semibold text-lg" style="color:var(--alerta);">¿Necesitas ayuda?</p>
+      <p class="text-[13px] mt-1.5" style="color:var(--ink-soft);">
+        Se mandará tu ubicación al dueño de la ruta como alerta de emergencia
+        (asalto, accidente u otra urgencia dentro de la combi).
+      </p>
+      <div class="flex gap-2.5 mt-4">
+        <button id="panicCancelBtn" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm placard">Cancelar</button>
+        <button id="panicConfirmBtn" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm" style="background:var(--alerta); color:#fff;">Sí, pedir ayuda</button>
+      </div>
+    </div>
+    <div id="panicStepSent" class="hidden">
+      <p class="font-display font-semibold text-lg" style="color:var(--agave);">✅ Alerta enviada</p>
+      <p id="panicSentDetail" class="text-[13px] mt-1.5" style="color:var(--ink-soft);">
+        Tu ubicación se envió al panel del dueño. Como respaldo, también puedes avisarle directo por WhatsApp:
+      </p>
+      <div class="flex gap-2.5 mt-4">
+        <button id="panicCloseBtn" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm placard">Cerrar</button>
+        <a id="panicWhatsappLink" href="#" target="_blank" rel="noopener" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm flex items-center justify-center" style="background:#25D366; color:#fff;">📲 WhatsApp</a>
+      </div>
+    </div>
+    <div id="panicStepError" class="hidden">
+      <p class="font-display font-semibold text-lg" style="color:var(--alerta);">No se pudo enviar la alerta en línea</p>
+      <p class="text-[13px] mt-1.5" style="color:var(--ink-soft);">
+        Revisa tu conexión. Mientras tanto, avisa directo por WhatsApp con tu ubicación:
+      </p>
+      <div class="flex gap-2.5 mt-4">
+        <button id="panicErrorCloseBtn" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm placard">Cerrar</button>
+        <a id="panicErrorWhatsappLink" href="#" target="_blank" rel="noopener" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm flex items-center justify-center" style="background:#25D366; color:#fff;">📲 WhatsApp</a>
+      </div>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ============================================================
@@ -713,6 +815,7 @@ function updateDirectionBadge(route, reverse){
 }
 
 function startCombiAnimation(route){
+  if (typeof liveDriverActive !== 'undefined' && liveDriverActive) return; // ya se muestra la posición real del conductor
   if (combiAnimId) cancelAnimationFrame(combiAnimId);
   if (combiMarker) { map.removeLayer(combiMarker); combiMarker = null; }
 
@@ -911,6 +1014,145 @@ document.getElementById('locateBtn').addEventListener('click', () => {
     showLocateStatus('', false);
   } else {
     startLocating();
+  }
+});
+
+/* ============================================================
+   COMBI EN VIVO — posición real mandada por el conductor (Pedro)
+   Lee /driverLocation/pedro en Firebase Realtime Database (ver
+   conductor.html). Si el conductor tiene la ubicación encendida y
+   el último dato es reciente (menos de 2 min), se dibuja un
+   marcador REAL en el mapa y se oculta la combi ilustrativa
+   decorativa mientras tanto, para no confundir a los pasajeros.
+   Si Firebase no está configurado todavía (ver firebase-config.js),
+   esta parte simplemente no hace nada y el resto de la app sigue
+   funcionando normal.
+   ============================================================ */
+let liveDriverMarker = null;
+let liveDriverActive = false;
+const LIVE_STALE_MS = 2 * 60 * 1000; // 2 minutos sin actualizar = se considera desconectado
+
+function liveIcon(){
+  return L.divIcon({
+    className: '',
+    html: `<div class="live-marker">🚐</div>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+  });
+}
+
+function setLiveDriverVisible(visible){
+  const badge = document.getElementById('liveDriverBadge');
+  if (badge) badge.classList.toggle('show', visible);
+  if (!visible && liveDriverMarker) {
+    map.removeLayer(liveDriverMarker);
+    liveDriverMarker = null;
+  }
+}
+
+function handleDriverSnapshot(data){
+  if (!map) return;
+  const isFresh = !!(data && data.active && data.updatedAt && (Date.now() - data.updatedAt < LIVE_STALE_MS));
+  liveDriverActive = isFresh;
+
+  if (isFresh) {
+    const latlng = [data.lat, data.lng];
+    if (!liveDriverMarker) {
+      liveDriverMarker = L.marker(latlng, { icon: liveIcon(), zIndexOffset: 3000, interactive: false }).addTo(map);
+    } else {
+      liveDriverMarker.setLatLng(latlng);
+    }
+    setLiveDriverVisible(true);
+    if (combiMarker) { map.removeLayer(combiMarker); combiMarker = null; }
+    if (combiAnimId) { cancelAnimationFrame(combiAnimId); combiAnimId = null; }
+  } else {
+    setLiveDriverVisible(false);
+    if (!combiMarker) startCombiAnimation(ROUTES[currentRoute]);
+  }
+}
+
+if (typeof db !== 'undefined' && db) {
+  try {
+    db.ref('driverLocation/pedro').on('value',
+      (snapshot) => handleDriverSnapshot(snapshot.val()),
+      () => { /* sin conexión a Firebase por ahora, la app sigue funcionando normal */ }
+    );
+  } catch (e) { /* Firebase no configurado todavía, ver firebase-config.js */ }
+}
+
+/* ============================================================
+   BOTÓN DE AYUDA / PÁNICO
+   Manda una alerta (con ubicación si el navegador la puede obtener)
+   al panel del dueño (dueno.html) vía Firebase. También arma un
+   link de WhatsApp pre-escrito como respaldo, por si el dueño no
+   tiene el panel abierto en ese momento — mandar el WhatsApp
+   automático no es posible sin la API de pago de WhatsApp Business.
+   ============================================================ */
+function buildPanicWhatsappUrl(lat, lng){
+  const mapsUrl = (lat != null && lng != null) ? `https://www.google.com/maps?q=${lat},${lng}` : 'ubicación no disponible, favor de llamar';
+  const text = `🆘 ALERTA · Ruta San Simón (R-18)\nSe necesita ayuda en la combi.\nHora: ${new Date().toLocaleString('es-MX')}\nUbicación: ${mapsUrl}`;
+  const number = (typeof OWNER_WHATSAPP_NUMBER !== 'undefined') ? OWNER_WHATSAPP_NUMBER : '';
+  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+}
+
+function showPanicStep(step){
+  document.getElementById('panicStepAsk').classList.toggle('hidden', step !== 'ask');
+  document.getElementById('panicStepSent').classList.toggle('hidden', step !== 'sent');
+  document.getElementById('panicStepError').classList.toggle('hidden', step !== 'error');
+}
+
+function openPanic(){
+  showPanicStep('ask');
+  document.getElementById('panicOverlay').classList.add('show');
+}
+function closePanic(){
+  document.getElementById('panicOverlay').classList.remove('show');
+}
+
+document.getElementById('panicBtn').addEventListener('click', () => { buzz(20); openPanic(); });
+document.getElementById('panicCancelBtn').addEventListener('click', closePanic);
+document.getElementById('panicCloseBtn').addEventListener('click', closePanic);
+document.getElementById('panicErrorCloseBtn').addEventListener('click', closePanic);
+document.getElementById('panicOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'panicOverlay') closePanic();
+});
+
+function sendPanicAlert(lat, lng){
+  const whatsappUrl = buildPanicWhatsappUrl(lat, lng);
+  document.getElementById('panicWhatsappLink').href = whatsappUrl;
+  document.getElementById('panicErrorWhatsappLink').href = whatsappUrl;
+
+  if (typeof db === 'undefined' || !db) {
+    showPanicStep('error');
+    return;
+  }
+  try {
+    db.ref('panicAlerts').push({
+      lat: lat ?? null,
+      lng: lng ?? null,
+      route: currentRoute,
+      status: 'pendiente',
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+    }).then(() => {
+      showPanicStep('sent');
+    }).catch(() => {
+      showPanicStep('error');
+    });
+  } catch (e) {
+    showPanicStep('error');
+  }
+}
+
+document.getElementById('panicConfirmBtn').addEventListener('click', () => {
+  buzz([40, 30, 40, 30, 60]);
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => sendPanicAlert(pos.coords.latitude, pos.coords.longitude),
+      () => sendPanicAlert(null, null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
+    );
+  } else {
+    sendPanicAlert(null, null);
   }
 });
 
