@@ -7,6 +7,14 @@
 <title>Ruta San Simón · San Simón - San Martín</title>
 <meta name="description" content="Horarios, frecuencia y mapa en vivo de la ruta de combis San Simón - San Martín Texmelucan.">
 
+<!-- PWA -->
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Ruta San Simón">
+
 <!-- Tailwind CSS (CDN) -->
 <script src="https://cdn.tailwindcss.com"></script>
 <script>
@@ -156,8 +164,26 @@
 
   ::selection{ background: var(--cempasuchil); color:#fff; }
 
+  #installBtn.show{ display:flex; }
+
+  .combi-marker{
+    width:30px; height:30px;
+    border-radius: 50%;
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 2px 6px rgba(0,0,0,.45);
+    border: 2px solid #fff;
+    font-size:16px;
+  }
+  .combi-emoji{ display:inline-block; transition: transform .15s linear; }
+
+  #confettiCanvas{
+    position:fixed; inset:0; width:100%; height:100%;
+    pointer-events:none; z-index:60;
+  }
+
   @media (prefers-reduced-motion: reduce){
     *{ transition: none !important; animation: none !important; }
+    .combi-emoji{ transition:none !important; }
   }
 </style>
 </head>
@@ -170,7 +196,7 @@
 <header class="sticky top-0 z-30 backdrop-blur" style="background:color-mix(in srgb, var(--paper) 92%, transparent); border-bottom:1px solid var(--border);">
   <div class="max-w-md mx-auto flex items-center justify-between px-4 py-3">
     <div class="flex items-center gap-2.5">
-      <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style="background:var(--talavera);">
+      <button id="hornBtn" aria-label="Bocinazo de la combi" class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 active:scale-90 transition-transform" style="background:var(--talavera);">
         <svg viewBox="0 0 48 32" class="w-6 h-6" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M4 22V13C4 10 6 8 9 8H31L40 15V22" stroke="white" stroke-width="2.6" stroke-linejoin="round"/>
           <rect x="4" y="22" width="40" height="4" rx="1" fill="white"/>
@@ -178,15 +204,20 @@
           <circle cx="34" cy="27" r="3.4" fill="white"/>
           <path d="M22 8V15H40" stroke="white" stroke-width="2.2"/>
         </svg>
-      </div>
+      </button>
       <div>
         <h1 class="font-display font-semibold text-lg leading-tight">Ruta San Simón</h1>
         <p class="text-xs leading-tight" style="color:var(--ink-soft);">San Simón → San Martín Texmelucan</p>
       </div>
     </div>
-    <button id="themeToggle" aria-label="Cambiar modo oscuro/claro" class="w-10 h-10 rounded-full flex items-center justify-center placard shrink-0">
-      <span id="themeIcon">🌙</span>
-    </button>
+    <div class="flex items-center gap-2 shrink-0">
+      <button id="installBtn" aria-label="Instalar app" class="hidden items-center gap-1.5 px-3 h-10 rounded-full font-display font-semibold text-[13px] active:scale-95 transition-transform" style="background:var(--cempasuchil); color:#fff;">
+        ⬇️ Instalar
+      </button>
+      <button id="themeToggle" aria-label="Cambiar modo oscuro/claro" class="w-10 h-10 rounded-full flex items-center justify-center placard shrink-0">
+        <span id="themeIcon">🌙</span>
+      </button>
+    </div>
   </div>
 </header>
 
@@ -336,6 +367,104 @@ const ROUTES = {
 
 let currentRoute = 'capilla';
 let map, pathLayer, markerLayer = [];
+let combiMarker, combiAnimId;
+const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+/* ============================================================
+   SONIDO (Web Audio API, sin archivos externos)
+   ============================================================ */
+let audioCtx;
+function getAudioCtx(){
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  if (audioCtx.state === 'suspended') audioCtx.resume();
+  return audioCtx;
+}
+function playTone(freq, duration, delay = 0, type = 'sine', gainPeak = 0.12){
+  try{
+    const ctx = getAudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    const t0 = ctx.currentTime + delay;
+    gain.gain.setValueAtTime(0, t0);
+    gain.gain.linearRampToValueAtTime(gainPeak, t0 + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.001, t0 + duration);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start(t0);
+    osc.stop(t0 + duration + 0.05);
+  } catch(e) { /* audio no disponible */ }
+}
+function playDing(){ playTone(880, 0.18, 0, 'sine', 0.1); playTone(1320, 0.18, 0.05, 'sine', 0.08); }
+function playHonk(){ playTone(220, 0.35, 0, 'sawtooth', 0.15); playTone(180, 0.35, 0.1, 'sawtooth', 0.15); }
+
+/* ============================================================
+   VIBRACIÓN
+   ============================================================ */
+function buzz(pattern){
+  if (navigator.vibrate) navigator.vibrate(pattern);
+}
+
+/* ============================================================
+   CONFETI (canvas ligero, sin dependencias)
+   ============================================================ */
+function confettiBurst(colorHex, count = 60){
+  if (reduceMotion) return;
+  let canvas = document.getElementById('confettiCanvas');
+  if (!canvas) {
+    canvas = document.createElement('canvas');
+    canvas.id = 'confettiCanvas';
+    document.body.appendChild(canvas);
+  }
+  const ctx = canvas.getContext('2d');
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = window.innerWidth * dpr;
+  canvas.height = window.innerHeight * dpr;
+  canvas.style.width = window.innerWidth + 'px';
+  canvas.style.height = window.innerHeight + 'px';
+  ctx.scale(dpr, dpr);
+
+  const colors = [colorHex, '#E07A1A', '#3E7A47', '#1C4E73', '#F5EEDD'];
+  const particles = Array.from({ length: count }, () => ({
+    x: window.innerWidth / 2 + (Math.random() - 0.5) * 60,
+    y: window.innerHeight * 0.25,
+    vx: (Math.random() - 0.5) * 9,
+    vy: Math.random() * -7 - 3,
+    size: Math.random() * 6 + 4,
+    color: colors[Math.floor(Math.random() * colors.length)],
+    rot: Math.random() * 360,
+    vr: (Math.random() - 0.5) * 18,
+    life: 0,
+  }));
+
+  let frame = 0;
+  function tick(){
+    frame++;
+    ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    let alive = false;
+    particles.forEach(p => {
+      p.vy += 0.28;
+      p.x += p.vx;
+      p.y += p.vy;
+      p.rot += p.vr;
+      p.life++;
+      if (p.y < window.innerHeight + 20) alive = true;
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rot * Math.PI / 180);
+      ctx.fillStyle = p.color;
+      ctx.globalAlpha = Math.max(0, 1 - p.life / 90);
+      ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+      ctx.restore();
+    });
+    if (alive && frame < 120) {
+      requestAnimationFrame(tick);
+    } else {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+    }
+  }
+  requestAnimationFrame(tick);
+}
 
 /* ============================================================
    TEMA CLARO / OSCURO
@@ -351,8 +480,10 @@ const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 applyTheme(prefersDark);
 
 document.getElementById('themeToggle').addEventListener('click', () => {
+  buzz(10);
   applyTheme(!root.classList.contains('dark'));
   renderMarkers(); // refresh pin colors against new theme
+  startCombiAnimation(ROUTES[currentRoute]); // refresh combi icon color against new theme
 });
 
 /* ============================================================
@@ -402,6 +533,72 @@ function initMap(){
   renderRoute();
 }
 
+function combiIcon(color){
+  return L.divIcon({
+    className: '',
+    html: `<div class="combi-marker" style="background:${color};">
+             <span class="combi-emoji">🚐</span>
+           </div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15],
+  });
+}
+
+function pathDistances(path){
+  const latlngs = path.map(p => L.latLng(p[0], p[1]));
+  const dist = [0];
+  for (let i = 1; i < latlngs.length; i++) {
+    dist.push(dist[i - 1] + latlngs[i - 1].distanceTo(latlngs[i]));
+  }
+  return { latlngs, dist, total: dist[dist.length - 1] || 1 };
+}
+
+function startCombiAnimation(route){
+  if (combiAnimId) cancelAnimationFrame(combiAnimId);
+  if (combiMarker) { map.removeLayer(combiMarker); combiMarker = null; }
+
+  const { latlngs, dist, total } = pathDistances(route.path);
+  if (latlngs.length < 2) return;
+
+  const color = root.classList.contains('dark') ? route.colorDark : route.color;
+  combiMarker = L.marker(latlngs[0], { icon: combiIcon(color), zIndexOffset: 1000, interactive: false }).addTo(map);
+
+  // Recorre la ruta completa (ida y vuelta) en ~34 segundos, solo como referencia visual.
+  const loopSeconds = 34;
+  const speed = (total * 2) / loopSeconds; // metros/seg, ida + vuelta
+  let startTime = null;
+
+  function step(ts){
+    if (!startTime) startTime = ts;
+    const elapsed = (ts - startTime) / 1000;
+    let traveled = (elapsed * speed) % (total * 2);
+    const reverse = traveled > total;
+    if (reverse) traveled = total * 2 - traveled;
+
+    let idx = 0;
+    while (idx < dist.length - 2 && dist[idx + 1] < traveled) idx++;
+    const segStart = dist[idx], segEnd = dist[idx + 1] ?? total;
+    const segLen = (segEnd - segStart) || 1;
+    const t = Math.min(1, Math.max(0, (traveled - segStart) / segLen));
+    const a = latlngs[idx], b = latlngs[idx + 1] || latlngs[idx];
+
+    const lat = a.lat + (b.lat - a.lat) * t;
+    const lng = a.lng + (b.lng - a.lng) * t;
+    combiMarker.setLatLng([lat, lng]);
+
+    if (!reduceMotion) {
+      const angle = Math.atan2(b.lng - a.lng, b.lat - a.lat) * 180 / Math.PI * (reverse ? -1 : 1);
+      const flip = reverse ? 180 : 0;
+      const el = combiMarker.getElement();
+      const inner = el && el.querySelector('.combi-emoji');
+      if (inner) inner.style.transform = `rotate(${angle + flip}deg)`;
+    }
+
+    combiAnimId = requestAnimationFrame(step);
+  }
+  combiAnimId = requestAnimationFrame(step);
+}
+
 function pinIcon(color, isTerminal){
   return L.divIcon({
     className: '',
@@ -444,6 +641,7 @@ function renderRoute(){
 
   renderMarkers();
   map.fitBounds(pathLayer.getBounds(), { padding: [24, 24] });
+  startCombiAnimation(route);
 }
 
 function focusStop(name){
@@ -476,8 +674,12 @@ function renderStopsList(){
       </button>
       <div class="stop-panel px-4">
         <p class="text-[13px] pb-3" style="color:var(--ink-soft);">${stop.desc}</p>
-        <button class="ver-mapa-btn mb-3 text-xs font-semibold px-3 py-2 rounded-full"
-                style="background:var(--route-color); color:#fff;">Ver en el mapa</button>
+        <div class="flex gap-2 mb-3">
+          <button class="ver-mapa-btn text-xs font-semibold px-3 py-2 rounded-full"
+                  style="background:var(--route-color); color:#fff;">📍 Ver en el mapa</button>
+          <button class="compartir-btn text-xs font-semibold px-3 py-2 rounded-full"
+                  style="background:#25D366; color:#fff;">📲 Compartir</button>
+        </div>
       </div>
     `;
     container.appendChild(row);
@@ -485,6 +687,7 @@ function renderStopsList(){
 
   container.querySelectorAll('.stop-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
+      buzz(10);
       const panel = btn.nextElementSibling;
       const chevron = btn.querySelector('.chevron');
       const wasOpen = panel.classList.contains('open');
@@ -500,7 +703,17 @@ function renderStopsList(){
   container.querySelectorAll('.ver-mapa-btn').forEach((btn, i) => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
+      buzz(15);
+      playDing();
       focusStop(route.stops[i].name);
+    });
+  });
+
+  container.querySelectorAll('.compartir-btn').forEach((btn, i) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      buzz(15);
+      shareStopWhatsApp(route.stops[i], route);
     });
   });
 }
@@ -509,6 +722,7 @@ function renderStopsList(){
    SELECTOR DE RAMAL
    ============================================================ */
 function setRoute(routeKey){
+  const changed = routeKey !== currentRoute;
   currentRoute = routeKey;
   const route = ROUTES[routeKey];
 
@@ -523,11 +737,71 @@ function setRoute(routeKey){
 
   renderRoute();
   renderStopsList();
+
+  if (changed) {
+    buzz(20);
+    playDing();
+    confettiBurst(route.color, 40);
+  }
 }
 
 document.querySelectorAll('.route-btn').forEach(btn => {
   btn.addEventListener('click', () => setRoute(btn.dataset.route));
 });
+
+/* ============================================================
+   COMPARTIR PARADA POR WHATSAPP
+   ============================================================ */
+function shareStopWhatsApp(stop, route){
+  const mapsUrl = `https://www.google.com/maps?q=${stop.lat},${stop.lng}`;
+  const text = `🚐 Ruta San Simón - ${route.label}\n📍 Parada: ${stop.name}\n${stop.desc}\n\nUbicación en el mapa:\n${mapsUrl}`;
+  const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
+  window.open(url, '_blank', 'noopener');
+}
+
+/* ============================================================
+   EASTER EGG: BOCINAZO
+   ============================================================ */
+document.getElementById('hornBtn').addEventListener('click', () => {
+  buzz([30, 40, 30]);
+  playHonk();
+  confettiBurst('#E07A1A', 70);
+});
+
+/* ============================================================
+   PWA: INSTALACIÓN Y SERVICE WORKER
+   ============================================================ */
+let deferredInstallPrompt;
+const installBtn = document.getElementById('installBtn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  installBtn.classList.remove('hidden');
+  installBtn.classList.add('show');
+});
+
+installBtn.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  buzz(15);
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  installBtn.classList.add('hidden');
+  installBtn.classList.remove('show');
+});
+
+window.addEventListener('appinstalled', () => {
+  installBtn.classList.add('hidden');
+  installBtn.classList.remove('show');
+  confettiBurst('#3E7A47', 80);
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* offline no disponible */ });
+  });
+}
 
 /* ============================================================
    INICIO
