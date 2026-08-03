@@ -164,6 +164,32 @@
 
   ::selection{ background: var(--cempasuchil); color:#fff; }
 
+  .user-dot{
+    width:18px; height:18px;
+    border-radius:50%;
+    background:#1A73E8;
+    border:3px solid #fff;
+    box-shadow: 0 0 0 2px rgba(26,115,232,.35), 0 2px 4px rgba(0,0,0,.35);
+    position:relative;
+  }
+  .user-dot::after{
+    content:'';
+    position:absolute;
+    inset:-12px;
+    border-radius:50%;
+    background:rgba(26,115,232,.25);
+    animation: userPulse 2s ease-out infinite;
+  }
+  @keyframes userPulse{
+    0%{ transform:scale(0.4); opacity:.9; }
+    100%{ transform:scale(1.6); opacity:0; }
+  }
+  #locateBtn.active{
+    background:#1A73E8 !important;
+    border-color:#1558B0 !important;
+    color:#fff !important;
+  }
+
   #installBtn.show{ display:flex; }
 
   .combi-marker{
@@ -303,14 +329,20 @@
 
   <!-- MAPA -->
   <section>
-    <div class="flex items-center justify-between mb-2">
+    <div class="flex items-center justify-between mb-2 gap-2">
       <h2 class="font-display font-semibold text-sm uppercase tracking-wide" style="color:var(--ink-soft);">Mapa de la ruta</h2>
-      <span id="mapRouteLabel" class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:var(--route-color); color:#fff;">Por Capilla</span>
+      <div class="flex items-center gap-1.5">
+        <button id="locateBtn" class="text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 active:scale-95 transition-transform" style="background:var(--paper-2); border:2px solid var(--border); color:var(--ink-soft);">
+          📍 Mi ubicación
+        </button>
+        <span id="mapRouteLabel" class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:var(--route-color); color:#fff;">Por Capilla</span>
+      </div>
     </div>
     <div class="placard overflow-hidden relative">
       <span id="combiDirectionBadge" class="absolute top-2.5 left-2.5 z-[500] text-[11px] font-semibold px-2.5 py-1.5 rounded-full font-display" style="background:var(--paper); border:2px solid var(--route-color); color:var(--route-color); box-shadow:var(--shadow);"></span>
       <div id="map"></div>
     </div>
+    <p id="locateStatus" class="text-[11px] mt-1.5 hidden" style="color:var(--ink-soft);"></p>
   </section>
 
   <!-- PARADAS -->
@@ -750,6 +782,101 @@ function focusStop(name){
   marker.openPopup();
   document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
+
+/* ============================================================
+   MI UBICACIÓN (GPS real del celular del usuario)
+   Usa navigator.geolocation del propio dispositivo — no rastrea la
+   combi, solo muestra dónde está parada la persona respecto a la ruta.
+   Todo pasa en el navegador; no se manda a ningún servidor.
+   ============================================================ */
+let userMarker, userAccuracyCircle, watchId = null;
+let hasCenteredOnUser = false;
+
+function userDotIcon(){
+  return L.divIcon({
+    className: '',
+    html: `<div class="user-dot"></div>`,
+    iconSize: [18, 18],
+    iconAnchor: [9, 9],
+  });
+}
+
+function showLocateStatus(msg, isError){
+  const el = document.getElementById('locateStatus');
+  el.textContent = msg;
+  el.style.color = isError ? 'var(--alerta)' : 'var(--ink-soft)';
+  el.classList.toggle('hidden', !msg);
+}
+
+function onLocationUpdate(pos){
+  const { latitude, longitude, accuracy } = pos.coords;
+  const latlng = [latitude, longitude];
+
+  if (!userMarker) {
+    userMarker = L.marker(latlng, { icon: userDotIcon(), zIndexOffset: 2000, interactive: false }).addTo(map);
+    userAccuracyCircle = L.circle(latlng, { radius: accuracy, color: '#1A73E8', weight: 1, fillColor: '#1A73E8', fillOpacity: 0.12 }).addTo(map);
+  } else {
+    userMarker.setLatLng(latlng);
+    userAccuracyCircle.setLatLng(latlng);
+    userAccuracyCircle.setRadius(accuracy);
+  }
+
+  if (!hasCenteredOnUser) {
+    hasCenteredOnUser = true;
+    map.setView(latlng, 16, { animate: true });
+  }
+
+  showLocateStatus('📍 Ubicación activa · el punto azul eres tú.', false);
+}
+
+function onLocationError(err){
+  let msg = 'No pudimos acceder a tu ubicación.';
+  if (err.code === err.PERMISSION_DENIED) {
+    msg = 'Activa el permiso de ubicación de este sitio en tu navegador para verte en el mapa.';
+  } else if (err.code === err.POSITION_UNAVAILABLE) {
+    msg = 'Tu ubicación no está disponible en este momento.';
+  } else if (err.code === err.TIMEOUT) {
+    msg = 'Tardó demasiado en obtener tu ubicación. Intenta de nuevo.';
+  }
+  showLocateStatus(msg, true);
+  stopLocating();
+}
+
+function startLocating(){
+  if (!navigator.geolocation) {
+    showLocateStatus('Tu navegador no soporta geolocalización.', true);
+    return;
+  }
+  buzz(15);
+  hasCenteredOnUser = false;
+  showLocateStatus('📍 Buscando tu ubicación…', false);
+  document.getElementById('locateBtn').classList.add('active');
+  document.getElementById('locateBtn').textContent = '📍 Ubicación activa';
+
+  watchId = navigator.geolocation.watchPosition(onLocationUpdate, onLocationError, {
+    enableHighAccuracy: true,
+    maximumAge: 5000,
+    timeout: 15000,
+  });
+}
+
+function stopLocating(){
+  if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+  watchId = null;
+  document.getElementById('locateBtn').classList.remove('active');
+  document.getElementById('locateBtn').textContent = '📍 Mi ubicación';
+  if (userMarker) { map.removeLayer(userMarker); userMarker = null; }
+  if (userAccuracyCircle) { map.removeLayer(userAccuracyCircle); userAccuracyCircle = null; }
+}
+
+document.getElementById('locateBtn').addEventListener('click', () => {
+  if (watchId !== null) {
+    stopLocating();
+    showLocateStatus('', false);
+  } else {
+    startLocating();
+  }
+});
 
 /* ============================================================
    LISTA DE PARADAS (acordeón)
