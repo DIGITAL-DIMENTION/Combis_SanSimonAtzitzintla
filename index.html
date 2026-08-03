@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#1C4E73">
+<title>Ruta San Simón · San Simón - San Martín</title>
+<meta name="description" content="Horarios, frecuencia y mapa en vivo de la ruta de combis San Simón - San Martín Texmelucan.">
+
+<!-- Tailwind CSS (CDN) -->
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: {
+          display: ['Oswald', 'sans-serif'],
+          body: ['Inter', 'sans-serif'],
+          mono: ['"JetBrains Mono"', 'monospace'],
+        }
+      }
+    }
+  }
+</script>
+
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+
+<!-- Leaflet -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<style>
+  :root{
+    --paper:#F5EEDD;
+    --paper-2:#EBE1C9;
+    --ink:#241D14;
+    --ink-soft:#5B5040;
+    --talavera:#1C4E73;
+    --talavera-dark:#123249;
+    --cempasuchil:#E07A1A;
+    --cempasuchil-dark:#B15E11;
+    --agave:#3E7A47;
+    --agave-dark:#2C5833;
+    --alerta:#B23A2E;
+    --alerta-bg:#F6DED9;
+    --border:#D8CBA6;
+    --shadow: 0 2px 0 rgba(36,29,20,0.08);
+  }
+  html.dark{
+    --paper:#181410;
+    --paper-2:#221C15;
+    --ink:#F3ECDD;
+    --ink-soft:#C9BCA0;
+    --talavera:#4E92C4;
+    --talavera-dark:#3A7AA8;
+    --cempasuchil:#F4993C;
+    --cempasuchil-dark:#D97F24;
+    --agave:#5FA26A;
+    --agave-dark:#457950;
+    --alerta:#E9847A;
+    --alerta-bg:#3A211D;
+    --border:#3A3226;
+    --shadow: 0 2px 0 rgba(0,0,0,0.35);
+  }
+
+  *{ -webkit-tap-highlight-color: transparent; }
+  html, body{ height:100%; }
+  body{
+    background:var(--paper);
+    color:var(--ink);
+    font-family:'Inter', sans-serif;
+    transition: background-color .25s ease, color .25s ease;
+    overscroll-behavior-y: contain;
+  }
+  .font-display{ font-family:'Oswald', sans-serif; letter-spacing:.01em; }
+  .font-mono{ font-family:'JetBrains Mono', monospace; }
+
+  /* Ribbon: la "cinta de color" que identifica cada ruta, como en las combis reales */
+  #ribbon{
+    height:8px;
+    width:100%;
+    background: linear-gradient(90deg, var(--route-color) 0%, var(--route-color) 100%);
+    transition: background-color .35s ease;
+  }
+
+  .placard{
+    background: var(--paper-2);
+    border: 2px solid var(--border);
+    border-radius: 14px;
+    box-shadow: var(--shadow);
+  }
+
+  .route-btn{
+    border: 2px solid var(--border);
+    background: var(--paper-2);
+    color: var(--ink-soft);
+    transition: all .2s ease;
+  }
+  .route-btn.active[data-route="capilla"]{
+    background: var(--cempasuchil);
+    border-color: var(--cempasuchil-dark);
+    color: #fff;
+  }
+  .route-btn.active[data-route="secundaria"]{
+    background: var(--agave);
+    border-color: var(--agave-dark);
+    color: #fff;
+  }
+
+  .stop-row{
+    border-bottom: 1px solid var(--border);
+  }
+  .stop-row:last-child{ border-bottom:none; }
+
+  .stop-panel{
+    max-height:0;
+    overflow:hidden;
+    transition: max-height .28s ease;
+  }
+  .stop-panel.open{
+    max-height: 220px;
+  }
+
+  .chevron{ transition: transform .2s ease; }
+  .chevron.open{ transform: rotate(180deg); }
+
+  #map{
+    height: 340px;
+    width:100%;
+    background:var(--paper-2);
+  }
+  .leaflet-container{ font-family:'Inter', sans-serif; background:var(--paper-2) !important; }
+
+  .stop-pin{
+    width:26px; height:26px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    display:flex; align-items:center; justify-content:center;
+    box-shadow: 0 1px 3px rgba(0,0,0,.4);
+    border: 2px solid rgba(255,255,255,.85);
+  }
+  .stop-pin span{ transform: rotate(45deg); font-size:12px; }
+
+  .skeleton{
+    background: linear-gradient(90deg, var(--paper-2) 25%, var(--border) 37%, var(--paper-2) 63%);
+    background-size: 400% 100%;
+    animation: shimmer 1.4s ease infinite;
+  }
+  @keyframes shimmer{
+    0%{ background-position: 100% 50%; }
+    100%{ background-position: 0 50%; }
+  }
+
+  ::selection{ background: var(--cempasuchil); color:#fff; }
+
+  @media (prefers-reduced-motion: reduce){
+    *{ transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body class="font-body pb-10" style="--route-color:#E07A1A;">
+
+<!-- Ribbon / cinta de color -->
+<div id="ribbon"></div>
+
+<!-- HEADER -->
+<header class="sticky top-0 z-30 backdrop-blur" style="background:color-mix(in srgb, var(--paper) 92%, transparent); border-bottom:1px solid var(--border);">
+  <div class="max-w-md mx-auto flex items-center justify-between px-4 py-3">
+    <div class="flex items-center gap-2.5">
+      <div class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style="background:var(--talavera);">
+        <svg viewBox="0 0 48 32" class="w-6 h-6" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M4 22V13C4 10 6 8 9 8H31L40 15V22" stroke="white" stroke-width="2.6" stroke-linejoin="round"/>
+          <rect x="4" y="22" width="40" height="4" rx="1" fill="white"/>
+          <circle cx="14" cy="27" r="3.4" fill="white"/>
+          <circle cx="34" cy="27" r="3.4" fill="white"/>
+          <path d="M22 8V15H40" stroke="white" stroke-width="2.2"/>
+        </svg>
+      </div>
+      <div>
+        <h1 class="font-display font-semibold text-lg leading-tight">Ruta San Simón</h1>
+        <p class="text-xs leading-tight" style="color:var(--ink-soft);">San Simón → San Martín Texmelucan</p>
+      </div>
+    </div>
+    <button id="themeToggle" aria-label="Cambiar modo oscuro/claro" class="w-10 h-10 rounded-full flex items-center justify-center placard shrink-0">
+      <span id="themeIcon">🌙</span>
+    </button>
+  </div>
+</header>
+
+<main class="max-w-md mx-auto px-4 mt-4 space-y-4">
+
+  <!-- SELECTOR DE RAMAL -->
+  <section>
+    <div class="grid grid-cols-2 gap-3">
+      <button data-route="capilla" class="route-btn active rounded-2xl py-3.5 font-display font-semibold text-[15px] leading-tight">
+        Por Capilla
+        <span class="block text-[11px] font-body font-normal opacity-90 mt-0.5">Capilla · Los Arcos</span>
+      </button>
+      <button data-route="secundaria" class="route-btn rounded-2xl py-3.5 font-display font-semibold text-[15px] leading-tight">
+        Por Secundaria
+        <span class="block text-[11px] font-body font-normal opacity-90 mt-0.5">Las Minas · San José</span>
+      </button>
+    </div>
+  </section>
+
+  <!-- TARJETA DE INFO RÁPIDA -->
+  <section class="placard p-4" style="transform: rotate(-0.3deg);">
+    <div class="flex items-start justify-between gap-3">
+      <div>
+        <p class="text-[11px] uppercase tracking-wider font-semibold" style="color:var(--ink-soft);">En este momento</p>
+        <p id="freqText" class="font-display font-bold text-2xl leading-tight" style="color:var(--route-color);">Calculando…</p>
+      </div>
+      <div class="w-11 h-11 rounded-full flex items-center justify-center text-xl shrink-0" style="background:var(--paper);">⏱️</div>
+    </div>
+
+    <div class="mt-3 pt-3 grid grid-cols-2 gap-3" style="border-top:1px dashed var(--border);">
+      <div>
+        <p class="text-[11px] uppercase tracking-wider font-semibold" style="color:var(--ink-soft);">Primera corrida</p>
+        <p class="font-mono font-bold text-lg">5:30 AM</p>
+      </div>
+      <div>
+        <p class="text-[11px] uppercase tracking-wider font-semibold" style="color:var(--ink-soft);">Última corrida</p>
+        <p class="font-mono font-bold text-lg">9:30 PM</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ALERTA DE TIANGUIS -->
+  <section id="tianguisAlert" class="hidden rounded-2xl p-3.5 flex items-start gap-2.5" style="background:var(--alerta-bg); border:2px solid var(--alerta);">
+    <span class="text-xl leading-none">⚠️</span>
+    <div>
+      <p class="font-display font-semibold text-sm" style="color:var(--alerta);">Hoy hay tianguis en San Martín</p>
+      <p class="text-[13px]" style="color:var(--ink-soft);">Tráfico más lento cerca del centro. Considera 10-15 min extra en tu viaje.</p>
+    </div>
+  </section>
+
+  <!-- MAPA -->
+  <section>
+    <div class="flex items-center justify-between mb-2">
+      <h2 class="font-display font-semibold text-sm uppercase tracking-wide" style="color:var(--ink-soft);">Mapa de la ruta</h2>
+      <span id="mapRouteLabel" class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:var(--route-color); color:#fff;">Por Capilla</span>
+    </div>
+    <div class="placard overflow-hidden">
+      <div id="map"></div>
+    </div>
+  </section>
+
+  <!-- PARADAS -->
+  <section>
+    <h2 class="font-display font-semibold text-sm uppercase tracking-wide mb-2" style="color:var(--ink-soft);">Paradas principales</h2>
+    <div id="stopsList" class="placard overflow-hidden"></div>
+  </section>
+
+  <footer class="text-center text-[11px] pt-2 pb-4" style="color:var(--ink-soft);">
+    Horarios y frecuencias de referencia · Confirma con el operador en ruta.
+  </footer>
+</main>
+
+<script>
+/* ============================================================
+   DATOS DE RUTA — reemplaza estas coordenadas con el trazado
+   GPS real de cada ramal cuando lo tengas disponible.
+   ============================================================ */
+
+const ROUTES = {
+  capilla: {
+    color: '#E07A1A',
+    colorDark: '#B15E11',
+    label: 'Por Capilla',
+    path: [
+      [19.2960, -98.4460],
+      [19.2946, -98.4441],
+      [19.2928, -98.4418],
+      [19.2910, -98.4400],
+      [19.2894, -98.4382],
+      [19.2872, -98.4358],
+      [19.2850, -98.4340],
+      [19.2822, -98.4312],
+      [19.2790, -98.4285],
+      [19.2808, -98.4260],
+      [19.2830, -98.4335]
+    ],
+    stops: [
+      { name: 'Base San Simón', lat: 19.2960, lng: -98.4460, desc: 'Punto de salida. Aquí inicia y termina la corrida. Sube desde temprano.' },
+      { name: 'La Capilla', lat: 19.2910, lng: -98.4400, desc: 'Capilla de San Simón, justo atrás de la iglesia. Parada muy solicitada.' },
+      { name: 'Los Arcos', lat: 19.2850, lng: -98.4340, desc: 'Cruce de Los Arcos. Bájate aquí si vas hacia la vía rápida.' },
+      { name: 'Entrada a Tlalnepantla', lat: 19.2790, lng: -98.4285, desc: 'Entronque hacia Tlalnepantla. Combi reduce velocidad para el giro.' },
+      { name: 'Centro San Martín', lat: 19.2830, lng: -98.4335, desc: 'Parada final frente al mercado municipal, a 2 cuadras del zócalo.' }
+    ]
+  },
+  secundaria: {
+    color: '#3E7A47',
+    colorDark: '#2C5833',
+    label: 'Por Secundaria',
+    path: [
+      [19.2960, -98.4460],
+      [19.2972, -98.4432],
+      [19.2985, -98.4402],
+      [19.2990, -98.4380],
+      [19.2978, -98.4352],
+      [19.2958, -98.4326],
+      [19.2938, -98.4318],
+      [19.2912, -98.4306],
+      [19.2900, -98.4300],
+      [19.2868, -98.4314],
+      [19.2830, -98.4335]
+    ],
+    stops: [
+      { name: 'Base San Simón', lat: 19.2960, lng: -98.4460, desc: 'Punto de salida. Aquí inicia y termina la corrida. Sube desde temprano.' },
+      { name: 'Fracc. Las Minas', lat: 19.2990, lng: -98.4380, desc: 'Entrada principal del fraccionamiento Las Minas.' },
+      { name: 'San José', lat: 19.2938, lng: -98.4318, desc: 'Colonia San José, parada junto a la tienda de abarrotes grande.' },
+      { name: 'La Caja de Agua', lat: 19.2900, lng: -98.4300, desc: 'Referencia: el tanque elevado de agua junto a la avenida.' },
+      { name: 'Centro San Martín', lat: 19.2830, lng: -98.4335, desc: 'Parada final frente al mercado municipal, a 2 cuadras del zócalo.' }
+    ]
+  }
+};
+
+let currentRoute = 'capilla';
+let map, pathLayer, markerLayer = [];
+
+/* ============================================================
+   TEMA CLARO / OSCURO
+   ============================================================ */
+const root = document.documentElement;
+const themeIcon = document.getElementById('themeIcon');
+
+function applyTheme(isDark){
+  root.classList.toggle('dark', isDark);
+  themeIcon.textContent = isDark ? '☀️' : '🌙';
+}
+const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+applyTheme(prefersDark);
+
+document.getElementById('themeToggle').addEventListener('click', () => {
+  applyTheme(!root.classList.contains('dark'));
+  renderMarkers(); // refresh pin colors against new theme
+});
+
+/* ============================================================
+   FRECUENCIA SEGÚN LA HORA
+   ============================================================ */
+function computeFrequency(){
+  const now = new Date();
+  const h = now.getHours() + now.getMinutes() / 60;
+  const day = now.getDay(); // 0=domingo ... 1=lunes, 2=martes
+
+  const tianguisAlert = document.getElementById('tianguisAlert');
+  tianguisAlert.classList.toggle('hidden', !(day === 1 || day === 2));
+
+  if (h < 5.5 || h >= 21.5) {
+    const mins = h < 5.5 ? Math.round((5.5 - h) * 60) : Math.round((29.5 - h) * 60);
+    return `Fuera de servicio · sale en ${Math.floor(mins/60) > 0 ? Math.floor(mins/60)+'h ' : ''}${mins % 60}min`;
+  }
+  if (h >= 7 && h < 9.5)   return 'Cada 5 - 8 min (hora pico)';
+  if (h >= 16 && h < 19.5) return 'Cada 5 - 8 min (hora pico)';
+  if (h >= 9.5 && h < 13)  return 'Cada 10 - 12 min';
+  if (h >= 13 && h < 16)   return 'Cada 8 - 10 min';
+  if (h >= 19.5 && h < 21.5) return 'Cada 12 - 18 min';
+  return 'Cada 15 - 20 min';
+}
+
+function updateFrequency(){
+  document.getElementById('freqText').textContent = computeFrequency();
+}
+updateFrequency();
+setInterval(updateFrequency, 60000);
+
+/* ============================================================
+   MAPA (Leaflet)
+   ============================================================ */
+function initMap(){
+  map = L.map('map', { zoomControl: true, attributionControl: false })
+    .setView([19.289, -98.437], 14);
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+  }).addTo(map);
+
+  L.control.attribution({ prefix: false })
+    .addAttribution('© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>')
+    .addTo(map);
+
+  renderRoute();
+}
+
+function pinIcon(color, isTerminal){
+  return L.divIcon({
+    className: '',
+    html: `<div class="stop-pin" style="background:${color};">
+             <span>${isTerminal ? '🚏' : '📍'}</span>
+           </div>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 24],
+    popupAnchor: [0, -22],
+  });
+}
+
+function renderMarkers(){
+  markerLayer.forEach(m => map.removeLayer(m));
+  markerLayer = [];
+
+  const route = ROUTES[currentRoute];
+  const color = root.classList.contains('dark') ? route.colorDark : route.color;
+
+  route.stops.forEach((stop, i) => {
+    const isTerminal = i === 0 || i === route.stops.length - 1;
+    const marker = L.marker([stop.lat, stop.lng], { icon: pinIcon(color, isTerminal) })
+      .addTo(map)
+      .bindPopup(`<strong>${stop.name}</strong><br>${stop.desc}`);
+    marker._stopName = stop.name;
+    markerLayer.push(marker);
+  });
+}
+
+function renderRoute(){
+  const route = ROUTES[currentRoute];
+
+  if (pathLayer) map.removeLayer(pathLayer);
+  pathLayer = L.polyline(route.path, {
+    color: route.color,
+    weight: 5,
+    opacity: 0.85,
+    lineJoin: 'round'
+  }).addTo(map);
+
+  renderMarkers();
+  map.fitBounds(pathLayer.getBounds(), { padding: [24, 24] });
+}
+
+function focusStop(name){
+  const marker = markerLayer.find(m => m._stopName === name);
+  if (!marker) return;
+  map.setView(marker.getLatLng(), 16, { animate: true });
+  marker.openPopup();
+  document.getElementById('map').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+/* ============================================================
+   LISTA DE PARADAS (acordeón)
+   ============================================================ */
+function renderStopsList(){
+  const container = document.getElementById('stopsList');
+  const route = ROUTES[currentRoute];
+  container.innerHTML = '';
+
+  route.stops.forEach((stop, i) => {
+    const row = document.createElement('div');
+    row.className = 'stop-row';
+    row.innerHTML = `
+      <button class="stop-toggle w-full flex items-center justify-between px-4 py-3.5 text-left" data-idx="${i}">
+        <span class="flex items-center gap-3">
+          <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-mono font-bold shrink-0"
+                style="background:var(--paper); border:2px solid var(--route-color); color:var(--route-color);">${i + 1}</span>
+          <span class="font-display font-semibold text-[15px]">${stop.name}</span>
+        </span>
+        <span class="chevron text-sm" style="color:var(--ink-soft);">▾</span>
+      </button>
+      <div class="stop-panel px-4">
+        <p class="text-[13px] pb-3" style="color:var(--ink-soft);">${stop.desc}</p>
+        <button class="ver-mapa-btn mb-3 text-xs font-semibold px-3 py-2 rounded-full"
+                style="background:var(--route-color); color:#fff;">Ver en el mapa</button>
+      </div>
+    `;
+    container.appendChild(row);
+  });
+
+  container.querySelectorAll('.stop-toggle').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const panel = btn.nextElementSibling;
+      const chevron = btn.querySelector('.chevron');
+      const wasOpen = panel.classList.contains('open');
+      container.querySelectorAll('.stop-panel').forEach(p => p.classList.remove('open'));
+      container.querySelectorAll('.chevron').forEach(c => c.classList.remove('open'));
+      if (!wasOpen) {
+        panel.classList.add('open');
+        chevron.classList.add('open');
+      }
+    });
+  });
+
+  container.querySelectorAll('.ver-mapa-btn').forEach((btn, i) => {
+    btn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      focusStop(route.stops[i].name);
+    });
+  });
+}
+
+/* ============================================================
+   SELECTOR DE RAMAL
+   ============================================================ */
+function setRoute(routeKey){
+  currentRoute = routeKey;
+  const route = ROUTES[routeKey];
+
+  document.querySelectorAll('.route-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.route === routeKey);
+  });
+
+  const color = root.classList.contains('dark') ? route.colorDark : route.color;
+  document.body.style.setProperty('--route-color', color);
+
+  document.getElementById('mapRouteLabel').textContent = route.label;
+
+  renderRoute();
+  renderStopsList();
+}
+
+document.querySelectorAll('.route-btn').forEach(btn => {
+  btn.addEventListener('click', () => setRoute(btn.dataset.route));
+});
+
+/* ============================================================
+   INICIO
+   ============================================================ */
+document.addEventListener('DOMContentLoaded', () => {
+  initMap();
+  renderStopsList();
+});
+</script>
+</body>
+</html>
