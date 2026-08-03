@@ -258,7 +258,7 @@
       </button>
       <button data-route="secundaria" class="route-btn rounded-2xl py-3.5 font-display font-semibold text-[15px] leading-tight">
         Por Secundaria
-        <span class="block text-[11px] font-body font-normal opacity-90 mt-0.5">Hacienda San José · Tlanalapan</span>
+        <span class="block text-[11px] font-body font-normal opacity-90 mt-0.5">Hacienda San José · Central</span>
       </button>
     </div>
   </section>
@@ -316,6 +316,9 @@
       </div>
     </div>
     <p class="text-[10px] mt-3" style="color:var(--ink-soft); opacity:.8;">*Tarifas de referencia, pueden variar ligeramente según el operador.</p>
+    <p class="text-[11px] mt-2 flex items-center gap-1.5" style="color:var(--ink-soft);">
+      <span>ℹ️</span> Lunes, martes y jueves la combi llega hasta la Central de Autobuses.
+    </p>
   </section>
 
   <!-- ALERTA DE TIANGUIS -->
@@ -419,14 +422,29 @@ const ROUTES = {
       [19.266406, -98.482229],
       [19.268338, -98.471808],
       [19.268886, -98.471208],
-      [19.272867, -98.458108]  // entrada a San Rafael Tlanalapan
+      [19.272867, -98.458108], // entrada a San Rafael Tlanalapan
+      [19.272676, -98.458975], // Los Arcos
+      [19.273298, -98.457653], // Caja de agua
+      [19.274399, -98.454361], // El Libramiento
+      [19.276800, -98.448500], // aprox. Cam. Real Iztaccíhuatl / San Salvador el Verde, pendiente afinar
+      [19.279387, -98.442088], // Módulo de vigilancia
+      [19.280500, -98.439700], // aprox. Agustín Lara / San Salvador el Verde, pendiente afinar
+      [19.281616, -98.437419], // Secundaria La Uno (Av. México)
+      [19.280700, -98.436000], // aprox. Av. México / Carr. Federal México-Puebla, pendiente afinar
+      [19.279756, -98.434480]  // Central de Autobuses (AU), Carr. Internacional
     ],
     stops: [
       { name: 'Base San Simón', lat: 19.260428, lng: -98.475840, desc: 'Av. Guadalupe Victoria, San Simón Atzitzintla. Punto de salida, sube desde temprano.' },
       { name: 'Vuelta a Av. Sur', lat: 19.260508, lng: -98.474244, desc: 'Esquina de Av. Guadalupe Victoria y Av. Sur, donde la combi da vuelta.' },
       { name: 'Hacienda San José', lat: 19.267022, lng: -98.479656, desc: 'Sobre Revolución Nte., hace parada frente a la Hacienda San José.' },
       { name: 'San Salvador el Verde', lat: 19.268523, lng: -98.479782, desc: 'Tramo por la calle San Salvador el Verde, antes de tomar Camino Real Iztaccíhuatl.' },
-      { name: 'Entrada a San Rafael Tlanalapan', lat: 19.272867, lng: -98.458108, desc: 'Camino Real Iztaccíhuatl, entrada a San Rafael Tlanalapan.' }
+      { name: 'Entrada a San Rafael Tlanalapan', lat: 19.272867, lng: -98.458108, desc: 'Camino Real Iztaccíhuatl, entrada a San Rafael Tlanalapan.' },
+      { name: 'Los Arcos', lat: 19.272676, lng: -98.458975, desc: 'Parada Los Arcos, justo después de la entrada a San Rafael Tlanalapan.' },
+      { name: 'Caja de Agua', lat: 19.273298, lng: -98.457653, desc: 'Parada Caja de Agua, sobre Camino Real Iztaccíhuatl.' },
+      { name: 'El Libramiento', lat: 19.274399, lng: -98.454361, desc: 'Cruce con el libramiento, ya entrando hacia San Martín.' },
+      { name: 'Módulo de Vigilancia', lat: 19.279387, lng: -98.442088, desc: 'Parada frente al módulo de vigilancia, sobre Camino Real Iztaccíhuatl / San Salvador el Verde.' },
+      { name: 'Secundaria La Uno', lat: 19.281616, lng: -98.437419, desc: 'Parada frente a la Secundaria No. 1, sobre Av. México.' },
+      { name: 'Central de Autobuses', lat: 19.279756, lng: -98.434480, desc: 'Parada final en la Central de Autobuses (AU), sobre Carr. Internacional.' }
     ]
   }
 };
