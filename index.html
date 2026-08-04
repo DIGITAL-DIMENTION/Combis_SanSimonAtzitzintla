@@ -240,28 +240,6 @@
   #liveDriverBadge.show{ display:flex; }
   #liveDriverBadge .dot{ width:7px; height:7px; border-radius:50%; background:#fff; animation:userPulse 1.4s ease-out infinite; }
 
-  /* Botón de ayuda / pánico */
-  #panicBtn{
-    position:fixed; right:16px; bottom:16px; z-index:55;
-    width:58px; height:58px; border-radius:50%;
-    background:var(--alerta); color:#fff;
-    display:flex; align-items:center; justify-content:center;
-    font-size:24px; box-shadow:0 4px 14px rgba(0,0,0,.35);
-    border:3px solid #fff;
-  }
-  #panicOverlay{
-    position:fixed; inset:0; z-index:70;
-    background:rgba(0,0,0,.55);
-    display:none; align-items:flex-end; justify-content:center;
-  }
-  #panicOverlay.show{ display:flex; }
-  #panicSheet{
-    width:100%; max-width:28rem;
-    background:var(--paper); border-radius:20px 20px 0 0;
-    padding:1.5rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
-    border-top:2px solid var(--border);
-  }
-
   @media (prefers-reduced-motion: reduce){
     *{ transition: none !important; animation: none !important; }
     .combi-emoji{ transition:none !important; }
@@ -401,7 +379,7 @@
     </div>
     <div class="placard overflow-hidden relative">
       <span id="combiDirectionBadge" class="absolute top-2.5 left-2.5 z-[500] text-[11px] font-semibold px-2.5 py-1.5 rounded-full font-display" style="background:var(--paper); border:2px solid var(--route-color); color:var(--route-color); box-shadow:var(--shadow);"></span>
-      <span id="liveDriverBadge"><span class="dot"></span> Pedro va en vivo</span>
+      <span id="liveDriverBadge"><span class="dot"></span> <span id="liveDriverBadgeText">Combi en vivo</span></span>
       <div id="map"></div>
     </div>
     <p id="locateStatus" class="text-[11px] mt-1.5 hidden" style="color:var(--ink-soft);"></p>
@@ -421,45 +399,6 @@
     <a href="dueno.html" style="color:var(--ink-soft); text-decoration:underline; opacity:.7;">Panel del dueño</a>
   </footer>
 </main>
-
-<!-- BOTÓN DE AYUDA / PÁNICO -->
-<button id="panicBtn" aria-label="Botón de ayuda">🆘</button>
-
-<div id="panicOverlay">
-  <div id="panicSheet">
-    <div id="panicStepAsk">
-      <p class="font-display font-semibold text-lg" style="color:var(--alerta);">¿Necesitas ayuda?</p>
-      <p class="text-[13px] mt-1.5" style="color:var(--ink-soft);">
-        Se mandará tu ubicación al dueño de la ruta como alerta de emergencia
-        (asalto, accidente u otra urgencia dentro de la combi).
-      </p>
-      <div class="flex gap-2.5 mt-4">
-        <button id="panicCancelBtn" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm placard">Cancelar</button>
-        <button id="panicConfirmBtn" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm" style="background:var(--alerta); color:#fff;">Sí, pedir ayuda</button>
-      </div>
-    </div>
-    <div id="panicStepSent" class="hidden">
-      <p class="font-display font-semibold text-lg" style="color:var(--agave);">✅ Alerta enviada</p>
-      <p id="panicSentDetail" class="text-[13px] mt-1.5" style="color:var(--ink-soft);">
-        Tu ubicación se envió al panel del dueño. Como respaldo, también puedes avisarle directo por WhatsApp:
-      </p>
-      <div class="flex gap-2.5 mt-4">
-        <button id="panicCloseBtn" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm placard">Cerrar</button>
-        <a id="panicWhatsappLink" href="#" target="_blank" rel="noopener" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm flex items-center justify-center" style="background:#25D366; color:#fff;">📲 WhatsApp</a>
-      </div>
-    </div>
-    <div id="panicStepError" class="hidden">
-      <p class="font-display font-semibold text-lg" style="color:var(--alerta);">No se pudo enviar la alerta en línea</p>
-      <p class="text-[13px] mt-1.5" style="color:var(--ink-soft);">
-        Revisa tu conexión. Mientras tanto, avisa directo por WhatsApp con tu ubicación:
-      </p>
-      <div class="flex gap-2.5 mt-4">
-        <button id="panicErrorCloseBtn" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm placard">Cerrar</button>
-        <a id="panicErrorWhatsappLink" href="#" target="_blank" rel="noopener" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm flex items-center justify-center" style="background:#25D366; color:#fff;">📲 WhatsApp</a>
-      </div>
-    </div>
-  </div>
-</div>
 
 <script>
 /* ============================================================
@@ -1018,19 +957,22 @@ document.getElementById('locateBtn').addEventListener('click', () => {
 });
 
 /* ============================================================
-   COMBI EN VIVO — posición real mandada por el conductor (Pedro)
-   Lee /driverLocation/pedro en Firebase Realtime Database (ver
-   conductor.html). Si el conductor tiene la ubicación encendida y
-   el último dato es reciente (menos de 2 min), se dibuja un
-   marcador REAL en el mapa y se oculta la combi ilustrativa
-   decorativa mientras tanto, para no confundir a los pasajeros.
-   Si Firebase no está configurado todavía (ver firebase-config.js),
+   COMBIS EN VIVO — posición real mandada por cada conductor
+   (ver conductor.html, hay hasta 15 conductores, cada quien con
+   su propio PIN, y cada quien elige su ramal: Por Capilla o Por
+   Secundaria). Lee /driverLocation en Firebase Realtime Database:
+   cada hijo es un conductor. Solo se muestran en el mapa los
+   conductores activos que van por el MISMO ramal que el pasajero
+   tiene seleccionado arriba, para no confundir. Si algún dato es
+   reciente (menos de 2 min), se dibuja un marcador REAL en el mapa
+   y se oculta la combi ilustrativa decorativa mientras tanto. Si
+   Firebase no está configurado todavía (ver firebase-config.js),
    esta parte simplemente no hace nada y el resto de la app sigue
    funcionando normal.
    ============================================================ */
-let liveDriverMarker = null;
-let liveDriverActive = false;
+const liveDriverMarkers = {}; // driverId -> L.marker
 const LIVE_STALE_MS = 2 * 60 * 1000; // 2 minutos sin actualizar = se considera desconectado
+let lastDriverSnapshot = {};
 
 function liveIcon(){
   return L.divIcon({
@@ -1041,120 +983,82 @@ function liveIcon(){
   });
 }
 
-function setLiveDriverVisible(visible){
+function driverLiveName(id, data){
+  if (data && data.driverName) return data.driverName;
+  const list = (typeof DRIVERS !== 'undefined') ? DRIVERS : [];
+  const found = list.find(d => d.id === id);
+  return found ? found.name : 'Conductor';
+}
+
+function updateLiveDriverBadge(activeCount, oneName){
   const badge = document.getElementById('liveDriverBadge');
-  if (badge) badge.classList.toggle('show', visible);
-  if (!visible && liveDriverMarker) {
-    map.removeLayer(liveDriverMarker);
-    liveDriverMarker = null;
+  const text = document.getElementById('liveDriverBadgeText');
+  if (!badge) return;
+  if (activeCount <= 0) {
+    badge.classList.remove('show');
+    return;
+  }
+  text.textContent = activeCount === 1 ? `${oneName} va en vivo` : `${activeCount} combis en vivo`;
+  badge.classList.add('show');
+}
+
+function renderLiveDrivers(){
+  if (!map) return;
+  const data = lastDriverSnapshot || {};
+  let activeCount = 0;
+  let oneName = '';
+
+  Object.keys(data).forEach((id) => {
+    const d = data[id];
+    // si el conductor no ha elegido ramal todavía (dato viejo), se muestra de todos modos
+    const matchesRoute = !d || !d.route || d.route === currentRoute;
+    const isFresh = !!(d && d.active && d.updatedAt && (Date.now() - d.updatedAt < LIVE_STALE_MS) && matchesRoute);
+    if (isFresh) {
+      activeCount++;
+      oneName = driverLiveName(id, d);
+      const latlng = [d.lat, d.lng];
+      if (!liveDriverMarkers[id]) {
+        liveDriverMarkers[id] = L.marker(latlng, { icon: liveIcon(), zIndexOffset: 3000, interactive: false }).addTo(map);
+      } else {
+        liveDriverMarkers[id].setLatLng(latlng);
+      }
+    } else if (liveDriverMarkers[id]) {
+      map.removeLayer(liveDriverMarkers[id]);
+      delete liveDriverMarkers[id];
+    }
+  });
+
+  // limpia marcadores de conductores que ya no vienen en los datos
+  Object.keys(liveDriverMarkers).forEach((id) => {
+    if (!(id in data)) {
+      map.removeLayer(liveDriverMarkers[id]);
+      delete liveDriverMarkers[id];
+    }
+  });
+
+  updateLiveDriverBadge(activeCount, oneName);
+
+  if (activeCount > 0) {
+    if (combiMarker) { map.removeLayer(combiMarker); combiMarker = null; }
+    if (combiAnimId) { cancelAnimationFrame(combiAnimId); combiAnimId = null; }
+  } else if (!combiMarker) {
+    startCombiAnimation(ROUTES[currentRoute]);
   }
 }
 
-function handleDriverSnapshot(data){
-  if (!map) return;
-  const isFresh = !!(data && data.active && data.updatedAt && (Date.now() - data.updatedAt < LIVE_STALE_MS));
-  liveDriverActive = isFresh;
-
-  if (isFresh) {
-    const latlng = [data.lat, data.lng];
-    if (!liveDriverMarker) {
-      liveDriverMarker = L.marker(latlng, { icon: liveIcon(), zIndexOffset: 3000, interactive: false }).addTo(map);
-    } else {
-      liveDriverMarker.setLatLng(latlng);
-    }
-    setLiveDriverVisible(true);
-    if (combiMarker) { map.removeLayer(combiMarker); combiMarker = null; }
-    if (combiAnimId) { cancelAnimationFrame(combiAnimId); combiAnimId = null; }
-  } else {
-    setLiveDriverVisible(false);
-    if (!combiMarker) startCombiAnimation(ROUTES[currentRoute]);
-  }
+function handleAllDriversSnapshot(allData){
+  lastDriverSnapshot = allData || {};
+  renderLiveDrivers();
 }
 
 if (typeof db !== 'undefined' && db) {
   try {
-    db.ref('driverLocation/pedro').on('value',
-      (snapshot) => handleDriverSnapshot(snapshot.val()),
+    db.ref('driverLocation').on('value',
+      (snapshot) => handleAllDriversSnapshot(snapshot.val()),
       () => { /* sin conexión a Firebase por ahora, la app sigue funcionando normal */ }
     );
   } catch (e) { /* Firebase no configurado todavía, ver firebase-config.js */ }
 }
-
-/* ============================================================
-   BOTÓN DE AYUDA / PÁNICO
-   Manda una alerta (con ubicación si el navegador la puede obtener)
-   al panel del dueño (dueno.html) vía Firebase. También arma un
-   link de WhatsApp pre-escrito como respaldo, por si el dueño no
-   tiene el panel abierto en ese momento — mandar el WhatsApp
-   automático no es posible sin la API de pago de WhatsApp Business.
-   ============================================================ */
-function buildPanicWhatsappUrl(lat, lng){
-  const mapsUrl = (lat != null && lng != null) ? `https://www.google.com/maps?q=${lat},${lng}` : 'ubicación no disponible, favor de llamar';
-  const text = `🆘 ALERTA · Ruta San Simón (R-18)\nSe necesita ayuda en la combi.\nHora: ${new Date().toLocaleString('es-MX')}\nUbicación: ${mapsUrl}`;
-  const number = (typeof OWNER_WHATSAPP_NUMBER !== 'undefined') ? OWNER_WHATSAPP_NUMBER : '';
-  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
-}
-
-function showPanicStep(step){
-  document.getElementById('panicStepAsk').classList.toggle('hidden', step !== 'ask');
-  document.getElementById('panicStepSent').classList.toggle('hidden', step !== 'sent');
-  document.getElementById('panicStepError').classList.toggle('hidden', step !== 'error');
-}
-
-function openPanic(){
-  showPanicStep('ask');
-  document.getElementById('panicOverlay').classList.add('show');
-}
-function closePanic(){
-  document.getElementById('panicOverlay').classList.remove('show');
-}
-
-document.getElementById('panicBtn').addEventListener('click', () => { buzz(20); openPanic(); });
-document.getElementById('panicCancelBtn').addEventListener('click', closePanic);
-document.getElementById('panicCloseBtn').addEventListener('click', closePanic);
-document.getElementById('panicErrorCloseBtn').addEventListener('click', closePanic);
-document.getElementById('panicOverlay').addEventListener('click', (e) => {
-  if (e.target.id === 'panicOverlay') closePanic();
-});
-
-function sendPanicAlert(lat, lng){
-  const whatsappUrl = buildPanicWhatsappUrl(lat, lng);
-  document.getElementById('panicWhatsappLink').href = whatsappUrl;
-  document.getElementById('panicErrorWhatsappLink').href = whatsappUrl;
-
-  if (typeof db === 'undefined' || !db) {
-    showPanicStep('error');
-    return;
-  }
-  try {
-    db.ref('panicAlerts').push({
-      lat: lat ?? null,
-      lng: lng ?? null,
-      route: currentRoute,
-      status: 'pendiente',
-      createdAt: firebase.database.ServerValue.TIMESTAMP,
-    }).then(() => {
-      showPanicStep('sent');
-    }).catch(() => {
-      showPanicStep('error');
-    });
-  } catch (e) {
-    showPanicStep('error');
-  }
-}
-
-document.getElementById('panicConfirmBtn').addEventListener('click', () => {
-  buzz([40, 30, 40, 30, 60]);
-  if (navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => sendPanicAlert(pos.coords.latitude, pos.coords.longitude),
-      () => sendPanicAlert(null, null),
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
-    );
-  } else {
-    sendPanicAlert(null, null);
-  }
-});
 
 /* ============================================================
    LISTA DE PARADAS (acordeón)
@@ -1242,6 +1146,7 @@ function setRoute(routeKey){
   renderRoute();
   renderStopsList();
   updateNextDeparture();
+  if (typeof renderLiveDrivers === 'function') renderLiveDrivers();
 
   if (changed) {
     buzz(20);
