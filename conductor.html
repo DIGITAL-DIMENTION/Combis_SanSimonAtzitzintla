@@ -7,7 +7,14 @@
 <title>Panel del Conductor · Ruta San Simón (R-18)</title>
 <meta name="robots" content="noindex, nofollow">
 
+<!-- PWA -->
+<link rel="manifest" href="manifest-conductor.json">
 <link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Conductor R-18">
+
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -21,7 +28,7 @@
   :root{
     --paper:#F5EEDD; --paper-2:#EBE1C9; --ink:#241D14; --ink-soft:#5B5040;
     --talavera:#1C4E73; --agave:#3E7A47; --agave-dark:#2C5833;
-    --alerta:#B23A2E; --alerta-bg:#F6DED9; --border:#D8CBA6;
+    --alerta:#B23A2E; --alerta-bg:#F6DED9; --border:#D8CBA6; --cempasuchil:#E07A1A; --cempasuchil-dark:#B15E11;
     --shadow: 0 2px 0 rgba(36,29,20,0.08);
   }
   *{ -webkit-tap-highlight-color: transparent; }
@@ -50,18 +57,53 @@
   }
   .pulseDot{ width:12px; height:12px; border-radius:50%; background:#fff; margin-bottom:8px; }
   #toggleBtn:not(.on) .pulseDot{ background:var(--ink-soft); }
+
+  /* Botón de ayuda / pánico */
+  #panicBtn{
+    position:fixed; right:16px; bottom:16px; z-index:55;
+    width:64px; height:64px; border-radius:50%;
+    background:var(--alerta); color:#fff;
+    display:flex; align-items:center; justify-content:center;
+    font-size:26px; box-shadow:0 4px 14px rgba(0,0,0,.35);
+    border:3px solid #fff;
+  }
+  #panicOverlay{
+    position:fixed; inset:0; z-index:70;
+    background:rgba(0,0,0,.55);
+    display:none; align-items:flex-end; justify-content:center;
+  }
+  #panicOverlay.show{ display:flex; }
+  #panicSheet{
+    width:100%; max-width:28rem;
+    background:var(--paper); border-radius:20px 20px 0 0;
+    padding:1.5rem 1.25rem calc(1.5rem + env(safe-area-inset-bottom));
+    border-top:2px solid var(--border);
+  }
+
+  #installBtn.show{ display:flex; }
+
+  .ramal-btn{
+    border:2px solid var(--border); background:var(--paper); color:var(--ink-soft);
+    border-radius:14px; padding:.7rem; font-family:'Oswald', sans-serif; font-weight:600; font-size:14px;
+    transition: all .15s ease;
+  }
+  .ramal-btn.active[data-route="capilla"]{ background:var(--cempasuchil); border-color:var(--cempasuchil-dark); color:#fff; }
+  .ramal-btn.active[data-route="secundaria"]{ background:var(--agave); border-color:var(--agave-dark); color:#fff; }
+
+  #pinInput{ letter-spacing:.15em; }
 </style>
 </head>
 <body class="font-body">
 
-<!-- PANTALLA DE PIN -->
+<!-- PANTALLA DE LOGIN DE CONDUCTOR -->
 <div id="pinScreen" class="min-h-screen flex items-center justify-center px-6">
   <div class="placard p-6 w-full max-w-sm text-center">
     <p class="text-4xl mb-2">🚐</p>
     <h1 class="font-display font-semibold text-xl">Panel del Conductor</h1>
     <p class="text-sm mt-1" style="color:var(--ink-soft);">Ruta San Simón · R-18</p>
+    <p class="text-xs mt-3" style="color:var(--ink-soft);">Entra con tu PIN personal</p>
     <input id="pinInput" type="password" inputmode="numeric" placeholder="PIN"
-           class="mt-5 w-full text-center text-2xl font-mono py-3 rounded-xl border-2"
+           class="mt-2 w-full text-center text-2xl font-mono py-3 rounded-xl border-2"
            style="background:var(--paper); border-color:var(--border); color:var(--ink);">
     <p id="pinError" class="text-sm mt-2 hidden" style="color:var(--alerta);">PIN incorrecto, intenta otra vez.</p>
     <button id="pinSubmit" class="mt-4 w-full py-3 rounded-xl font-display font-semibold" style="background:var(--talavera); color:#fff;">Entrar</button>
@@ -69,15 +111,44 @@
 </div>
 
 <!-- PANEL PRINCIPAL -->
-<div id="mainScreen" class="hidden min-h-screen flex flex-col items-center px-6 py-8">
-  <header class="text-center mb-6">
-    <h1 class="font-display font-semibold text-xl">Panel del Conductor</h1>
-    <p class="text-sm" style="color:var(--ink-soft);">Ruta San Simón · R-18</p>
+<div id="mainScreen" class="hidden min-h-screen flex flex-col items-center px-6 py-8 pb-28">
+  <header class="text-center mb-6 w-full max-w-sm flex items-center justify-between">
+    <div class="text-left">
+      <h1 class="font-display font-semibold text-xl">Panel del Conductor</h1>
+      <p class="text-sm" style="color:var(--ink-soft);">Ruta San Simón · R-18</p>
+    </div>
+    <button id="installBtn" aria-label="Instalar app" class="hidden items-center gap-1.5 px-3 h-9 rounded-full font-display font-semibold text-[12px] active:scale-95 transition-transform shrink-0" style="background:var(--cempasuchil); color:#fff;">
+      ⬇️ Instalar
+    </button>
   </header>
 
-  <div class="placard px-5 py-3 mb-8 flex items-center gap-2">
-    <span class="text-lg">👤</span>
-    <span class="font-display font-semibold">Pedro</span>
+  <!-- TARJETA DE CONDUCTOR / NOMBRE EDITABLE -->
+  <div class="placard px-4 py-3.5 mb-8 w-full max-w-sm">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="text-lg">👤</span>
+      <span class="font-display font-semibold text-sm uppercase tracking-wide" style="color:var(--ink-soft);">Mi nombre</span>
+    </div>
+    <div class="flex gap-2">
+      <input id="driverNameInput" type="text" maxlength="30" placeholder="Tu nombre"
+             class="flex-1 min-w-0 px-3 py-2.5 rounded-xl border-2 font-display font-semibold"
+             style="background:var(--paper); border-color:var(--border); color:var(--ink);">
+      <button id="saveNameBtn" class="px-4 py-2.5 rounded-xl font-display font-semibold text-sm shrink-0" style="background:var(--talavera); color:#fff;">Guardar</button>
+    </div>
+    <p id="nameSavedText" class="text-xs mt-2 hidden" style="color:var(--agave-dark);">✅ Nombre guardado. Ya se ve así en el panel del dueño.</p>
+    <button id="switchDriverBtn" class="text-xs mt-3 underline" style="color:var(--ink-soft);">Cambiar de conductor</button>
+  </div>
+
+  <!-- RAMAL ASIGNADO -->
+  <div class="placard px-4 py-3.5 mb-8 w-full max-w-sm">
+    <div class="flex items-center gap-2 mb-2">
+      <span class="text-lg">🛣️</span>
+      <span class="font-display font-semibold text-sm uppercase tracking-wide" style="color:var(--ink-soft);">Tu ramal hoy</span>
+    </div>
+    <div class="grid grid-cols-2 gap-2">
+      <button class="ramal-btn" data-route="capilla">Por Capilla</button>
+      <button class="ramal-btn" data-route="secundaria">Por Secundaria</button>
+    </div>
+    <p class="text-[11px] mt-2" style="color:var(--ink-soft);">Esto le avisa al dueño (y a los pasajeros) por cuál ramal vas.</p>
   </div>
 
   <button id="toggleBtn">
@@ -103,48 +174,199 @@
     💡 Deja la pantalla encendida y el navegador abierto mientras manejas la ruta.
     Si cierras esta página o pierdes conexión, tu ubicación se apaga sola para los pasajeros.
   </p>
+  <p class="text-[12px] mt-3 text-center max-w-sm" style="color:var(--ink-soft); opacity:.85;">
+    🆘 ¿Asalto, accidente u otra emergencia? Usa el botón rojo de abajo a la derecha para avisarle
+    al dueño de inmediato, con tu ubicación.
+  </p>
+</div>
+
+<!-- BOTÓN DE AYUDA / PÁNICO -->
+<button id="panicBtn" aria-label="Botón de ayuda">🆘</button>
+
+<div id="panicOverlay">
+  <div id="panicSheet">
+    <div id="panicStepAsk">
+      <p class="font-display font-semibold text-lg" style="color:var(--alerta);">¿Necesitas ayuda?</p>
+      <p class="text-[13px] mt-1.5" style="color:var(--ink-soft);">
+        Se mandará tu ubicación y tu nombre al dueño de la ruta como alerta de emergencia
+        (asalto, accidente u otra urgencia).
+      </p>
+      <div class="flex gap-2.5 mt-4">
+        <button id="panicCancelBtn" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm placard">Cancelar</button>
+        <button id="panicConfirmBtn" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm" style="background:var(--alerta); color:#fff;">Sí, pedir ayuda</button>
+      </div>
+    </div>
+    <div id="panicStepSent" class="hidden">
+      <p class="font-display font-semibold text-lg" style="color:var(--agave);">✅ Alerta enviada</p>
+      <p id="panicSentDetail" class="text-[13px] mt-1.5" style="color:var(--ink-soft);">
+        Tu ubicación se envió al panel del dueño. Como respaldo, también puedes avisarle directo por WhatsApp:
+      </p>
+      <div class="flex gap-2.5 mt-4">
+        <button id="panicCloseBtn" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm placard">Cerrar</button>
+        <a id="panicWhatsappLink" href="#" target="_blank" rel="noopener" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm flex items-center justify-center" style="background:#25D366; color:#fff;">📲 WhatsApp</a>
+      </div>
+    </div>
+    <div id="panicStepError" class="hidden">
+      <p class="font-display font-semibold text-lg" style="color:var(--alerta);">No se pudo enviar la alerta en línea</p>
+      <p class="text-[13px] mt-1.5" style="color:var(--ink-soft);">
+        Revisa tu conexión. Mientras tanto, avisa directo por WhatsApp con tu ubicación:
+      </p>
+      <div class="flex gap-2.5 mt-4">
+        <button id="panicErrorCloseBtn" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm placard">Cerrar</button>
+        <a id="panicErrorWhatsappLink" href="#" target="_blank" rel="noopener" class="flex-1 py-3 rounded-2xl font-display font-semibold text-sm flex items-center justify-center" style="background:#25D366; color:#fff;">📲 WhatsApp</a>
+      </div>
+    </div>
+  </div>
 </div>
 
 <script>
+/* ============================================================
+   LOGIN DE CONDUCTOR (PIN individual, ver firebase-config.js)
+   ============================================================ */
 const pinScreen = document.getElementById('pinScreen');
 const mainScreen = document.getElementById('mainScreen');
 const pinInput = document.getElementById('pinInput');
 const pinError = document.getElementById('pinError');
 
-function unlock(){
-  pinScreen.classList.add('hidden');
-  mainScreen.classList.remove('hidden');
+let currentDriver = null; // { id, pin, name(default) }
+
+function findDriverByPin(pin){
+  const list = (typeof DRIVERS !== 'undefined') ? DRIVERS : [];
+  return list.find(d => d.pin === pin) || null;
+}
+function findDriverById(id){
+  const list = (typeof DRIVERS !== 'undefined') ? DRIVERS : [];
+  return list.find(d => d.id === id) || null;
 }
 
-if (localStorage.getItem('rss_panel_unlocked') === 'true') {
-  unlock();
+function unlock(driver){
+  currentDriver = driver;
+  pinScreen.classList.add('hidden');
+  mainScreen.classList.remove('hidden');
+  setupDriverNameField();
+  setupDriverRoute();
+  setupDriverLocationRef();
+}
+
+const savedDriverId = localStorage.getItem('rss_driver_id');
+if (savedDriverId) {
+  const d = findDriverById(savedDriverId);
+  if (d) unlock(d);
 }
 
 document.getElementById('pinSubmit').addEventListener('click', tryPin);
 pinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryPin(); });
 
 function tryPin(){
-  const expected = (typeof PANEL_PIN !== 'undefined') ? PANEL_PIN : null;
-  if (expected !== null && pinInput.value === expected) {
-    localStorage.setItem('rss_panel_unlocked', 'true');
+  const driver = findDriverByPin(pinInput.value.trim());
+  if (driver) {
+    localStorage.setItem('rss_driver_id', driver.id);
     pinError.classList.add('hidden');
-    unlock();
+    pinInput.value = '';
+    unlock(driver);
   } else {
     pinError.classList.remove('hidden');
   }
 }
 
+document.getElementById('switchDriverBtn').addEventListener('click', () => {
+  if (watchId !== null) stopSharing();
+  localStorage.removeItem('rss_driver_id');
+  currentDriver = null;
+  mainScreen.classList.add('hidden');
+  pinScreen.classList.remove('hidden');
+  pinInput.value = '';
+});
+
+/* ============================================================
+   NOMBRE EDITABLE DEL CONDUCTOR (se guarda en Firebase, se ve
+   reflejado en el panel del dueño automáticamente)
+   ============================================================ */
+const driverNameInput = document.getElementById('driverNameInput');
+const saveNameBtn = document.getElementById('saveNameBtn');
+const nameSavedText = document.getElementById('nameSavedText');
+
+function setupDriverNameField(){
+  driverNameInput.value = currentDriver.name || '';
+  if (typeof db !== 'undefined' && db) {
+    db.ref('drivers/' + currentDriver.id + '/name').get().then((snap) => {
+      const savedName = snap.exists() ? snap.val() : null;
+      driverNameInput.value = savedName || currentDriver.name || '';
+    }).catch(() => {});
+  }
+}
+
+saveNameBtn.addEventListener('click', () => {
+  const newName = driverNameInput.value.trim();
+  if (!newName) return;
+  if (typeof db !== 'undefined' && db) {
+    db.ref('drivers/' + currentDriver.id).update({ name: newName }).then(() => {
+      nameSavedText.classList.remove('hidden');
+      setTimeout(() => nameSavedText.classList.add('hidden'), 3000);
+    }).catch(() => {});
+  }
+});
+
+/* ============================================================
+   RAMAL ASIGNADO (Por Capilla / Por Secundaria)
+   Se guarda en el dispositivo y también en Firebase (drivers/{id})
+   para que el dueño lo vea aunque el conductor esté sin conexión.
+   ============================================================ */
+let currentDriverRoute = 'capilla';
+
+function updateRamalButtons(){
+  document.querySelectorAll('.ramal-btn').forEach((b) => {
+    b.classList.toggle('active', b.dataset.route === currentDriverRoute);
+  });
+}
+
+function setupDriverRoute(){
+  const saved = localStorage.getItem('rss_driver_route_' + currentDriver.id);
+  currentDriverRoute = saved || 'capilla';
+  updateRamalButtons();
+
+  if (typeof db !== 'undefined' && db) {
+    db.ref('drivers/' + currentDriver.id + '/route').get().then((snap) => {
+      if (snap.exists() && !saved) {
+        currentDriverRoute = snap.val();
+        updateRamalButtons();
+      }
+    }).catch(() => {});
+  }
+}
+
+document.querySelectorAll('.ramal-btn').forEach((btn) => {
+  btn.addEventListener('click', () => {
+    currentDriverRoute = btn.dataset.route;
+    updateRamalButtons();
+    if (navigator.vibrate) navigator.vibrate(15);
+    if (currentDriver) {
+      localStorage.setItem('rss_driver_route_' + currentDriver.id, currentDriverRoute);
+      if (typeof db !== 'undefined' && db) {
+        db.ref('drivers/' + currentDriver.id).update({ route: currentDriverRoute }).catch(() => {});
+      }
+      // si ya está compartiendo ubicación, actualiza el ramal ahí también
+      if (driverRef && watchId !== null) {
+        driverRef.update({ route: currentDriverRoute }).catch(() => {});
+      }
+    }
+  });
+});
+
 /* ============================================================
    ENCENDER / APAGAR UBICACIÓN
    ============================================================ */
-const DRIVER_REF_PATH = 'driverLocation/pedro';
 let watchId = null;
 let driverRef = null;
 
-if (typeof db !== 'undefined' && db) {
-  driverRef = db.ref(DRIVER_REF_PATH);
-} else {
-  document.getElementById('firebaseWarning').classList.remove('hidden');
+function setupDriverLocationRef(){
+  if (typeof db !== 'undefined' && db) {
+    driverRef = db.ref('driverLocation/' + currentDriver.id);
+    document.getElementById('firebaseWarning').classList.add('hidden');
+  } else {
+    driverRef = null;
+    document.getElementById('firebaseWarning').classList.remove('hidden');
+  }
 }
 
 const toggleBtn = document.getElementById('toggleBtn');
@@ -167,7 +389,8 @@ function onPos(pos){
       speed: speed ?? null,
       active: true,
       updatedAt: now,
-      driverName: 'Pedro',
+      driverName: driverNameInput.value.trim() || currentDriver.name,
+      route: currentDriverRoute,
     }).catch(() => {
       statusText.textContent = 'No se pudo enviar tu ubicación (revisa tu conexión).';
     });
@@ -225,6 +448,121 @@ toggleBtn.addEventListener('click', () => {
 window.addEventListener('beforeunload', () => {
   if (driverRef && watchId !== null) driverRef.update({ active: false });
 });
+
+/* ============================================================
+   BOTÓN DE AYUDA / PÁNICO
+   Manda una alerta (con ubicación si el navegador la puede
+   obtener) al panel del dueño (dueno.html) vía Firebase. También
+   arma un link de WhatsApp pre-escrito como respaldo.
+   ============================================================ */
+function buildPanicWhatsappUrl(lat, lng){
+  const mapsUrl = (lat != null && lng != null) ? `https://www.google.com/maps?q=${lat},${lng}` : 'ubicación no disponible, favor de llamar';
+  const name = (currentDriver && (driverNameInput.value.trim() || currentDriver.name)) || 'Conductor';
+  const routeLabel = currentDriverRoute === 'secundaria' ? 'Por Secundaria' : 'Por Capilla';
+  const text = `🆘 ALERTA · Ruta San Simón (R-18)\nConductor: ${name}\nRamal: ${routeLabel}\nSe necesita ayuda en la combi.\nHora: ${new Date().toLocaleString('es-MX')}\nUbicación: ${mapsUrl}`;
+  const number = (typeof OWNER_WHATSAPP_NUMBER !== 'undefined') ? OWNER_WHATSAPP_NUMBER : '';
+  return `https://wa.me/${number}?text=${encodeURIComponent(text)}`;
+}
+
+function showPanicStep(step){
+  document.getElementById('panicStepAsk').classList.toggle('hidden', step !== 'ask');
+  document.getElementById('panicStepSent').classList.toggle('hidden', step !== 'sent');
+  document.getElementById('panicStepError').classList.toggle('hidden', step !== 'error');
+}
+
+function openPanic(){
+  showPanicStep('ask');
+  document.getElementById('panicOverlay').classList.add('show');
+}
+function closePanic(){
+  document.getElementById('panicOverlay').classList.remove('show');
+}
+
+document.getElementById('panicBtn').addEventListener('click', () => {
+  if (navigator.vibrate) navigator.vibrate(20);
+  openPanic();
+});
+document.getElementById('panicCancelBtn').addEventListener('click', closePanic);
+document.getElementById('panicCloseBtn').addEventListener('click', closePanic);
+document.getElementById('panicErrorCloseBtn').addEventListener('click', closePanic);
+document.getElementById('panicOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'panicOverlay') closePanic();
+});
+
+function sendPanicAlert(lat, lng){
+  const whatsappUrl = buildPanicWhatsappUrl(lat, lng);
+  document.getElementById('panicWhatsappLink').href = whatsappUrl;
+  document.getElementById('panicErrorWhatsappLink').href = whatsappUrl;
+
+  if (typeof db === 'undefined' || !db) {
+    showPanicStep('error');
+    return;
+  }
+  try {
+    db.ref('panicAlerts').push({
+      driverId: currentDriver ? currentDriver.id : null,
+      driverName: (currentDriver && (driverNameInput.value.trim() || currentDriver.name)) || 'Conductor',
+      route: currentDriverRoute,
+      lat: lat ?? null,
+      lng: lng ?? null,
+      status: 'pendiente',
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+    }).then(() => {
+      showPanicStep('sent');
+    }).catch(() => {
+      showPanicStep('error');
+    });
+  } catch (e) {
+    showPanicStep('error');
+  }
+}
+
+document.getElementById('panicConfirmBtn').addEventListener('click', () => {
+  if (navigator.vibrate) navigator.vibrate([40, 30, 40, 30, 60]);
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(
+      (pos) => sendPanicAlert(pos.coords.latitude, pos.coords.longitude),
+      () => sendPanicAlert(null, null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
+    );
+  } else {
+    sendPanicAlert(null, null);
+  }
+});
+
+/* ============================================================
+   PWA: INSTALACIÓN Y SERVICE WORKER
+   ============================================================ */
+let deferredInstallPrompt;
+const installBtn = document.getElementById('installBtn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  installBtn.classList.remove('hidden');
+  installBtn.classList.add('show');
+});
+
+installBtn.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  if (navigator.vibrate) navigator.vibrate(15);
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  installBtn.classList.add('hidden');
+  installBtn.classList.remove('show');
+});
+
+window.addEventListener('appinstalled', () => {
+  installBtn.classList.add('hidden');
+  installBtn.classList.remove('show');
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* offline no disponible */ });
+  });
+}
 </script>
 </body>
 </html>
