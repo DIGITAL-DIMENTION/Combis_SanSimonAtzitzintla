@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#1C4E73">
+<meta name="theme-color" content="#0E80BE">
 <title>Ruta San Simón · San Simón - San Martín</title>
 <meta name="description" content="Horarios, frecuencia y mapa en vivo de la ruta de combis San Simón - San Martín Texmelucan.">
 
@@ -22,19 +22,25 @@
     theme: {
       extend: {
         fontFamily: {
-          display: ['Oswald', 'sans-serif'],
-          body: ['Inter', 'sans-serif'],
+          display: ['Sora', 'sans-serif'],
+          body: ['"Plus Jakarta Sans"', 'sans-serif'],
           mono: ['"JetBrains Mono"', 'monospace'],
+        },
+        borderRadius: {
+          '4xl': '1.75rem',
         }
       }
     }
   }
 </script>
 
-<!-- Google Fonts -->
+<!-- Google Fonts: Sora (display, con carácter) + Plus Jakarta Sans (texto) + JetBrains Mono (datos/horarios) -->
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+
+<!-- Lucide Icons (SVG, ligero, sin dependencias) -->
+<script src="https://unpkg.com/lucide@latest"></script>
 
 <!-- Leaflet -->
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -47,36 +53,43 @@
 
 <style>
   :root{
-    --paper:#F5EEDD;
-    --paper-2:#EBE1C9;
-    --ink:#241D14;
-    --ink-soft:#5B5040;
-    --talavera:#1C4E73;
-    --talavera-dark:#123249;
-    --cempasuchil:#E07A1A;
-    --cempasuchil-dark:#B15E11;
-    --agave:#3E7A47;
-    --agave-dark:#2C5833;
-    --alerta:#B23A2E;
-    --alerta-bg:#F6DED9;
-    --border:#D8CBA6;
-    --shadow: 0 2px 0 rgba(36,29,20,0.08);
+    /* Nivel 1 — fondo neutro cálido (no blanco puro, no slate frío) */
+    --paper:#FAF7F0;
+    --paper-2:#FFFFFF;
+    /* Nivel 3 — superficie elevada / tarjetas */
+    --surface:#F4EEDC;
+    --ink:#221B12;
+    --ink-soft:#7C7261;
+    /* Nivel 2 — acentos vivos pero con matiz (nada de plano ni neón) */
+    --talavera:#0E80BE;
+    --talavera-dark:#0A5F8E;
+    --cempasuchil:#F5900C;
+    --cempasuchil-dark:#CB7208;
+    --agave:#1E9E5A;
+    --agave-dark:#147A43;
+    --alerta:#E1483A;
+    --alerta-bg:#FCE3DE;
+    --border:#E4DBC5;
+    --shadow: 0 1px 2px rgba(34,27,18,0.05), 0 6px 16px -8px rgba(34,27,18,0.14);
+    --shadow-md: 0 10px 30px -10px rgba(34,27,18,0.22);
   }
   html.dark{
-    --paper:#181410;
-    --paper-2:#221C15;
-    --ink:#F3ECDD;
-    --ink-soft:#C9BCA0;
-    --talavera:#4E92C4;
-    --talavera-dark:#3A7AA8;
-    --cempasuchil:#F4993C;
-    --cempasuchil-dark:#D97F24;
-    --agave:#5FA26A;
-    --agave-dark:#457950;
-    --alerta:#E9847A;
-    --alerta-bg:#3A211D;
-    --border:#3A3226;
-    --shadow: 0 2px 0 rgba(0,0,0,0.35);
+    --paper:#16140F;
+    --paper-2:#1D1B14;
+    --surface:#262019;
+    --ink:#F1EBDC;
+    --ink-soft:#A79A83;
+    --talavera:#3EACEE;
+    --talavera-dark:#2088C4;
+    --cempasuchil:#FFA53D;
+    --cempasuchil-dark:#F08916;
+    --agave:#3FCB80;
+    --agave-dark:#25A863;
+    --alerta:#FF7A69;
+    --alerta-bg:#3D211D;
+    --border:rgba(255,255,255,0.08);
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 8px 20px -10px rgba(0,0,0,0.55);
+    --shadow-md: 0 14px 34px -12px rgba(0,0,0,0.6);
   }
 
   *{ -webkit-tap-highlight-color: transparent; }
@@ -84,49 +97,67 @@
   body{
     background:var(--paper);
     color:var(--ink);
-    font-family:'Inter', sans-serif;
+    font-family:'Plus Jakarta Sans', sans-serif;
     transition: background-color .25s ease, color .25s ease;
     overscroll-behavior-y: contain;
   }
-  .font-display{ font-family:'Oswald', sans-serif; letter-spacing:.01em; }
+  .font-display{ font-family:'Sora', sans-serif; letter-spacing:-.01em; }
   .font-mono{ font-family:'JetBrains Mono', monospace; }
 
   /* Ribbon: la "cinta de color" que identifica cada ruta, como en las combis reales */
   #ribbon{
-    height:8px;
+    height:6px;
     width:100%;
-    background: linear-gradient(90deg, var(--route-color) 0%, var(--route-color) 100%);
+    background: var(--route-color);
     transition: background-color .35s ease;
   }
 
+  /* Tarjeta base del sistema — superficie elevada, borde sutil, sombra difuminada */
   .placard{
     background: var(--paper-2);
-    border: 2px solid var(--border);
-    border-radius: 14px;
+    border: 1px solid var(--border);
+    border-radius: 1.25rem;
     box-shadow: var(--shadow);
+    transition: box-shadow .3s ease, transform .3s ease, border-color .3s ease;
+  }
+  .placard-hover:hover{
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
   }
 
   .route-btn{
-    border: 2px solid var(--border);
+    border: 1.5px solid var(--border);
     background: var(--paper-2);
     color: var(--ink-soft);
-    transition: all .2s ease;
+    border-radius: 1.25rem;
+    transition: all .25s ease;
+  }
+  .route-btn:active{ transform: scale(.97); }
+  .route-btn:not(.active):hover{
+    border-color: var(--route-color);
+    color: var(--ink);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow);
   }
   .route-btn.active[data-route="capilla"]{
-    background: var(--cempasuchil);
+    background: linear-gradient(155deg, var(--cempasuchil) 0%, var(--cempasuchil-dark) 100%);
     border-color: var(--cempasuchil-dark);
     color: #fff;
+    box-shadow: var(--shadow-md);
   }
   .route-btn.active[data-route="secundaria"]{
-    background: var(--agave);
+    background: linear-gradient(155deg, var(--agave) 0%, var(--agave-dark) 100%);
     border-color: var(--agave-dark);
     color: #fff;
+    box-shadow: var(--shadow-md);
   }
 
   .stop-row{
     border-bottom: 1px solid var(--border);
   }
   .stop-row:last-child{ border-bottom:none; }
+  .stop-toggle{ transition: background-color .2s ease; }
+  .stop-toggle:hover{ background: var(--surface); }
 
   .stop-panel{
     max-height:0;
@@ -145,7 +176,12 @@
     width:100%;
     background:var(--paper-2);
   }
-  .leaflet-container{ font-family:'Inter', sans-serif; background:var(--paper-2) !important; }
+  .leaflet-container{ font-family:'Plus Jakarta Sans', sans-serif; background:var(--surface) !important; }
+
+  /* Micro-interacciones: botones y chips interactivos */
+  .btn-lift{ transition: all .25s cubic-bezier(.2,.8,.2,1); }
+  .btn-lift:hover{ transform: translateY(-1px); box-shadow: var(--shadow-md); }
+  .btn-lift:active{ transform: translateY(0) scale(.97); }
 
   .stop-pin{
     width:26px; height:26px;
@@ -235,10 +271,13 @@
     position:absolute; top:2.5rem; left:0.625rem; z-index:500;
     font-size:11px; font-weight:600; padding:5px 10px; border-radius:999px;
     background:#2C9E4A; color:#fff; display:none; align-items:center; gap:5px;
-    box-shadow:var(--shadow); font-family:'Oswald', sans-serif;
+    box-shadow:var(--shadow); font-family:'Sora', sans-serif;
   }
   #liveDriverBadge.show{ display:flex; }
   #liveDriverBadge .dot{ width:7px; height:7px; border-radius:50%; background:#fff; animation:userPulse 1.4s ease-out infinite; }
+
+  /* Lucide icons: tamaño consistente por defecto, heredan stroke-width fino y moderno */
+  [data-lucide]{ width:18px; height:18px; stroke-width:2.1; }
 
   @media (prefers-reduced-motion: reduce){
     *{ transition: none !important; animation: none !important; }
@@ -246,7 +285,7 @@
   }
 </style>
 </head>
-<body class="font-body pb-10" style="--route-color:#E07A1A;">
+<body class="font-body pb-10" style="--route-color:#F5900C;">
 
 <!-- Ribbon / cinta de color -->
 <div id="ribbon"></div>
@@ -255,7 +294,7 @@
 <header class="sticky top-0 z-30 backdrop-blur" style="background:color-mix(in srgb, var(--paper) 92%, transparent); border-bottom:1px solid var(--border);">
   <div class="max-w-md mx-auto flex items-center justify-between px-4 py-3">
     <div class="flex items-center gap-2.5">
-      <button id="hornBtn" aria-label="Bocinazo de la combi" class="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 active:scale-90 transition-transform" style="background:var(--talavera);">
+      <button id="hornBtn" aria-label="Bocinazo de la combi" class="btn-lift w-10 h-10 rounded-2xl flex items-center justify-center shrink-0" style="background:linear-gradient(155deg, var(--talavera) 0%, var(--talavera-dark) 100%);">
         <svg viewBox="0 0 48 32" class="w-6 h-6" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M4 22V13C4 10 6 8 9 8H31L40 15V22" stroke="white" stroke-width="2.6" stroke-linejoin="round"/>
           <rect x="4" y="22" width="40" height="4" rx="1" fill="white"/>
@@ -273,11 +312,11 @@
       </div>
     </div>
     <div class="flex items-center gap-2 shrink-0">
-      <button id="installBtn" aria-label="Instalar app" class="hidden items-center gap-1.5 px-3 h-10 rounded-full font-display font-semibold text-[13px] active:scale-95 transition-transform" style="background:var(--cempasuchil); color:#fff;">
-        ⬇️ Instalar
+      <button id="installBtn" aria-label="Instalar app" class="btn-lift hidden items-center gap-1.5 px-3.5 h-10 rounded-full font-display font-semibold text-[13px] shadow-sm" style="background:linear-gradient(155deg, var(--cempasuchil) 0%, var(--cempasuchil-dark) 100%); color:#fff;">
+        <i data-lucide="download" class="w-4 h-4"></i> Instalar
       </button>
-      <button id="themeToggle" aria-label="Cambiar modo oscuro/claro" class="w-10 h-10 rounded-full flex items-center justify-center placard shrink-0">
-        <span id="themeIcon">🌙</span>
+      <button id="themeToggle" aria-label="Cambiar modo oscuro/claro" class="btn-lift w-10 h-10 rounded-full flex items-center justify-center placard shrink-0">
+        <i id="themeIcon" data-lucide="moon"></i>
       </button>
     </div>
   </div>
@@ -288,81 +327,83 @@
   <!-- SELECTOR DE RAMAL -->
   <section>
     <div class="grid grid-cols-2 gap-3">
-      <button data-route="capilla" class="route-btn active rounded-2xl py-3.5 font-display font-semibold text-[15px] leading-tight">
+      <button data-route="capilla" class="route-btn active py-4 font-display font-semibold text-[15px] leading-tight">
         Por Capilla
-        <span class="block text-[11px] font-body font-normal opacity-90 mt-0.5">La Capilla · Central</span>
+        <span class="block text-[11px] font-body font-normal opacity-90 mt-1">La Capilla · Central</span>
       </button>
-      <button data-route="secundaria" class="route-btn rounded-2xl py-3.5 font-display font-semibold text-[15px] leading-tight">
+      <button data-route="secundaria" class="route-btn py-4 font-display font-semibold text-[15px] leading-tight">
         Por Secundaria
-        <span class="block text-[11px] font-body font-normal opacity-90 mt-0.5">Hacienda San José · Central</span>
+        <span class="block text-[11px] font-body font-normal opacity-90 mt-1">Hacienda San José · Central</span>
       </button>
     </div>
   </section>
 
   <!-- TARJETA DE INFO RÁPIDA -->
-  <section class="placard p-4" style="transform: rotate(-0.3deg);">
+  <section class="placard placard-hover p-5">
     <div class="flex items-start justify-between gap-3">
       <div>
         <p class="text-[11px] uppercase tracking-wider font-semibold" style="color:var(--ink-soft);">En este momento</p>
-        <p id="freqText" class="font-display font-bold text-2xl leading-tight" style="color:var(--route-color);">Calculando…</p>
-        <p id="nextDepartureText" class="font-mono text-[12px] mt-1" style="color:var(--ink-soft);"></p>
+        <p id="freqText" class="font-display font-bold text-2xl leading-tight mt-0.5" style="color:var(--route-color);">Calculando…</p>
+        <p id="nextDepartureText" class="font-mono text-[12px] mt-1.5" style="color:var(--ink-soft);"></p>
       </div>
-      <div class="w-11 h-11 rounded-full flex items-center justify-center text-xl shrink-0" style="background:var(--paper);">⏱️</div>
+      <div class="w-11 h-11 rounded-2xl flex items-center justify-center shrink-0" style="background:color-mix(in srgb, var(--route-color) 16%, var(--paper-2)); color:var(--route-color);">
+        <i data-lucide="clock-4"></i>
+      </div>
     </div>
 
-    <div class="mt-3 pt-3 grid grid-cols-2 gap-3" style="border-top:1px dashed var(--border);">
+    <div class="mt-4 pt-4 grid grid-cols-2 gap-3" style="border-top:1px solid var(--border);">
       <div>
         <p class="text-[11px] uppercase tracking-wider font-semibold" style="color:var(--ink-soft);">Primera corrida</p>
-        <p class="font-mono font-bold text-lg">5:30 AM</p>
+        <p class="font-mono font-bold text-lg mt-0.5">5:30 AM</p>
       </div>
       <div>
         <p class="text-[11px] uppercase tracking-wider font-semibold" style="color:var(--ink-soft);">Última corrida</p>
-        <p class="font-mono font-bold text-lg">9:30 PM</p>
+        <p class="font-mono font-bold text-lg mt-0.5">9:30 PM</p>
       </div>
     </div>
-    <p class="text-[10px] mt-2" style="color:var(--ink-soft); opacity:.8;">*Hora de próxima salida estimada, recuerde que es un aproximado.</p>
+    <p class="text-[10px] mt-3" style="color:var(--ink-soft); opacity:.8;">*Hora de próxima salida estimada, recuerde que es un aproximado.</p>
   </section>
 
   <!-- TARIFAS -->
-  <section class="placard p-4" style="transform: rotate(0.25deg);">
-    <div class="flex items-center justify-between mb-3">
+  <section class="placard placard-hover p-5">
+    <div class="flex items-center justify-between mb-3.5">
       <h2 class="font-display font-semibold text-sm uppercase tracking-wide" style="color:var(--ink-soft);">Tarifas</h2>
-      <span class="text-lg">🪙</span>
+      <span class="w-8 h-8 rounded-full flex items-center justify-center" style="background:color-mix(in srgb, var(--cempasuchil) 18%, var(--paper-2)); color:var(--cempasuchil);"><i data-lucide="coins" class="w-4 h-4"></i></span>
     </div>
     <div class="grid grid-cols-2 gap-2.5">
-      <div class="rounded-xl p-3" style="background:var(--paper);">
+      <div class="rounded-2xl p-3.5" style="background:var(--surface);">
         <p class="text-[11px] font-semibold" style="color:var(--ink-soft);">Normal</p>
-        <p class="font-mono font-bold text-xl" style="color:var(--route-color);">$9</p>
-        <p class="text-[10px]" style="color:var(--ink-soft);">San Simón → San Martín</p>
+        <p class="font-mono font-bold text-xl mt-0.5" style="color:var(--route-color);">$9</p>
+        <p class="text-[10px] mt-0.5" style="color:var(--ink-soft);">San Simón → San Martín</p>
       </div>
-      <div class="rounded-xl p-3" style="background:var(--paper);">
+      <div class="rounded-2xl p-3.5" style="background:var(--surface);">
         <p class="text-[11px] font-semibold" style="color:var(--ink-soft);">Parada mínima</p>
-        <p class="font-mono font-bold text-xl" style="color:var(--route-color);">$8</p>
-        <p class="text-[10px]" style="color:var(--ink-soft);">Tramos cortos</p>
+        <p class="font-mono font-bold text-xl mt-0.5" style="color:var(--route-color);">$8</p>
+        <p class="text-[10px] mt-0.5" style="color:var(--ink-soft);">Tramos cortos</p>
       </div>
-      <div class="rounded-xl p-3" style="background:var(--paper);">
+      <div class="rounded-2xl p-3.5" style="background:var(--surface);">
         <p class="text-[11px] font-semibold" style="color:var(--ink-soft);">Estudiantes</p>
-        <p class="font-mono font-bold text-xl" style="color:var(--route-color);">$7</p>
-        <p class="text-[10px]" style="color:var(--ink-soft);">Con credencial</p>
+        <p class="font-mono font-bold text-xl mt-0.5" style="color:var(--route-color);">$7</p>
+        <p class="text-[10px] mt-0.5" style="color:var(--ink-soft);">Con credencial</p>
       </div>
-      <div class="rounded-xl p-3" style="background:var(--paper);">
+      <div class="rounded-2xl p-3.5" style="background:var(--surface);">
         <p class="text-[11px] font-semibold" style="color:var(--ink-soft);">Adulto mayor</p>
-        <p class="font-mono font-bold text-xl" style="color:var(--route-color);">$5</p>
-        <p class="text-[10px]" style="color:var(--ink-soft);">INAPAM / abuelitos</p>
+        <p class="font-mono font-bold text-xl mt-0.5" style="color:var(--route-color);">$5</p>
+        <p class="text-[10px] mt-0.5" style="color:var(--ink-soft);">INAPAM / abuelitos</p>
       </div>
     </div>
     <p class="text-[10px] mt-3" style="color:var(--ink-soft); opacity:.8;">*Tarifas de referencia, pueden variar ligeramente según el operador.</p>
     <p class="text-[11px] mt-2 flex items-center gap-1.5" style="color:var(--ink-soft);">
-      <span>ℹ️</span> Lunes, martes y jueves la combi llega hasta la Central (mercado).
+      <i data-lucide="info" class="w-3.5 h-3.5 shrink-0"></i> Lunes, martes y jueves la combi llega hasta la Central (mercado).
     </p>
   </section>
 
   <!-- ALERTA DE TIANGUIS -->
-  <section id="tianguisAlert" class="hidden rounded-2xl p-3.5 flex items-start gap-2.5" style="background:var(--alerta-bg); border:2px solid var(--alerta);">
-    <span class="text-xl leading-none">⚠️</span>
+  <section id="tianguisAlert" class="hidden rounded-2xl p-4 flex items-start gap-3" style="background:var(--alerta-bg); border:1px solid var(--alerta);">
+    <span class="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style="background:var(--paper-2); color:var(--alerta);"><i data-lucide="triangle-alert" class="w-4 h-4"></i></span>
     <div>
       <p class="font-display font-semibold text-sm" style="color:var(--alerta);">Hoy hay tianguis en San Martín</p>
-      <p class="text-[13px]" style="color:var(--ink-soft);">Tráfico más lento cerca del centro. Considera 10-15 min extra en tu viaje.</p>
+      <p class="text-[13px] mt-0.5" style="color:var(--ink-soft);">Tráfico más lento cerca del centro. Considera 10-15 min extra en tu viaje.</p>
     </div>
   </section>
 
@@ -371,14 +412,14 @@
     <div class="flex items-center justify-between mb-2 gap-2">
       <h2 class="font-display font-semibold text-sm uppercase tracking-wide" style="color:var(--ink-soft);">Mapa de la ruta</h2>
       <div class="flex items-center gap-1.5">
-        <button id="locateBtn" class="text-xs font-semibold px-2.5 py-1 rounded-full flex items-center gap-1 active:scale-95 transition-transform" style="background:var(--paper-2); border:2px solid var(--border); color:var(--ink-soft);">
-          📍 Mi ubicación
+        <button id="locateBtn" class="btn-lift text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5" style="background:var(--paper-2); border:1.5px solid var(--border); color:var(--ink-soft);">
+          <i data-lucide="locate-fixed" class="w-3.5 h-3.5"></i> Mi ubicación
         </button>
-        <span id="mapRouteLabel" class="text-xs font-semibold px-2.5 py-1 rounded-full" style="background:var(--route-color); color:#fff;">Por Capilla</span>
+        <span id="mapRouteLabel" class="text-xs font-semibold px-3 py-1.5 rounded-full" style="background:var(--route-color); color:#fff;">Por Capilla</span>
       </div>
     </div>
     <div class="placard overflow-hidden relative">
-      <span id="combiDirectionBadge" class="absolute top-2.5 left-2.5 z-[500] text-[11px] font-semibold px-2.5 py-1.5 rounded-full font-display" style="background:var(--paper); border:2px solid var(--route-color); color:var(--route-color); box-shadow:var(--shadow);"></span>
+      <span id="combiDirectionBadge" class="absolute top-2.5 left-2.5 z-[500] text-[11px] font-semibold px-2.5 py-1.5 rounded-full font-display" style="background:var(--paper-2); border:1.5px solid var(--route-color); color:var(--route-color); box-shadow:var(--shadow);"></span>
       <span id="liveDriverBadge"><span class="dot"></span> <span id="liveDriverBadgeText">Combi en vivo</span></span>
       <div id="map"></div>
     </div>
@@ -391,12 +432,14 @@
     <div id="stopsList" class="placard overflow-hidden"></div>
   </section>
 
-  <footer class="text-center text-[11px] pt-2 pb-4" style="color:var(--ink-soft);">
+  <footer class="text-center text-[11px] pt-4 pb-6" style="color:var(--ink-soft);">
     Horarios y frecuencias de referencia · Confirma con el operador en ruta.
-    <br>
-    <a href="conductor.html" style="color:var(--ink-soft); text-decoration:underline; opacity:.7;">Panel del conductor</a>
-    ·
-    <a href="dueno.html" style="color:var(--ink-soft); text-decoration:underline; opacity:.7;">Panel del dueño</a>
+    <br class="mb-1">
+    <span class="inline-flex items-center gap-2 mt-2">
+      <a href="conductor.html" class="hover:opacity-100 transition-opacity" style="color:var(--ink-soft); text-decoration:underline; text-underline-offset:2px; opacity:.75;">Panel del conductor</a>
+      <span style="opacity:.4;">·</span>
+      <a href="dueno.html" class="hover:opacity-100 transition-opacity" style="color:var(--ink-soft); text-decoration:underline; text-underline-offset:2px; opacity:.75;">Panel del dueño</a>
+    </span>
   </footer>
 </main>
 
@@ -408,8 +451,8 @@
 
 const ROUTES = {
   capilla: {
-    color: '#E07A1A',
-    colorDark: '#B15E11',
+    color: '#F5900C',
+    colorDark: '#CB7208',
     label: 'Por Capilla',
     // Trazado real: Av. Guadalupe Victoria → 2A de Guadalupe Victoria → Adolfo López Mateos →
     // Tercera de Allende → C. Aldama → C. Manuel Padre Montés → Av. Sur → Calle Nacional Ote. →
@@ -451,8 +494,8 @@ const ROUTES = {
     ]
   },
   secundaria: {
-    color: '#3E7A47',
-    colorDark: '#2C5833',
+    color: '#1E9E5A',
+    colorDark: '#147A43',
     label: 'Por Secundaria',
     // Trazado real capturado sobre Av. Guadalupe Victoria → Av. Sur → C. Nacional →
     // Revolución Nte. → San Salvador el Verde / Cam. Real Iztaccíhuatl, hacia San Rafael Tlanalapan.
@@ -567,7 +610,7 @@ function confettiBurst(colorHex, count = 60){
   canvas.style.height = window.innerHeight + 'px';
   ctx.scale(dpr, dpr);
 
-  const colors = [colorHex, '#E07A1A', '#3E7A47', '#1C4E73', '#F5EEDD'];
+  const colors = [colorHex, '#F5900C', '#1E9E5A', '#0E80BE', '#FAF7F0'];
   const particles = Array.from({ length: count }, () => ({
     x: window.innerWidth / 2 + (Math.random() - 0.5) * 60,
     y: window.innerHeight * 0.25,
@@ -617,7 +660,8 @@ const themeIcon = document.getElementById('themeIcon');
 
 function applyTheme(isDark){
   root.classList.toggle('dark', isDark);
-  themeIcon.textContent = isDark ? '☀️' : '🌙';
+  themeIcon.setAttribute('data-lucide', isDark ? 'sun' : 'moon');
+  if (window.lucide) lucide.createIcons();
 }
 const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
 applyTheme(prefersDark);
@@ -697,7 +741,7 @@ function updateNextDeparture(){
   const secStyle = secOn ? 'color:var(--route-color); font-weight:700;' : 'color:var(--ink-soft); font-weight:500;';
   const capStyle = capOn ? 'color:var(--route-color); font-weight:700;' : 'color:var(--ink-soft); font-weight:500;';
 
-  el.innerHTML = `🕒 Próxima salida aprox · <span style="${secStyle}">Secundaria ${formatHora(est.secundaria)}</span> → <span style="${capStyle}">Capilla ${formatHora(est.capilla)}</span> <span style="opacity:.75;">(sale ~8 min después)</span>`;
+  el.innerHTML = `Próxima salida aprox · <span style="${secStyle}">Secundaria ${formatHora(est.secundaria)}</span> → <span style="${capStyle}">Capilla ${formatHora(est.capilla)}</span> <span style="opacity:.75;">(sale ~8 min después)</span>`;
 }
 
 function updateFrequency(){
@@ -886,6 +930,12 @@ function showLocateStatus(msg, isError){
   el.classList.toggle('hidden', !msg);
 }
 
+function setLocateBtnState(iconName, label){
+  const btn = document.getElementById('locateBtn');
+  btn.innerHTML = `<i data-lucide="${iconName}" class="w-3.5 h-3.5"></i> ${label}`;
+  if (window.lucide) lucide.createIcons();
+}
+
 function onLocationUpdate(pos){
   const { latitude, longitude, accuracy } = pos.coords;
   const latlng = [latitude, longitude];
@@ -904,7 +954,7 @@ function onLocationUpdate(pos){
     map.setView(latlng, 16, { animate: true });
   }
 
-  showLocateStatus('📍 Ubicación activa · el punto azul eres tú.', false);
+  showLocateStatus('Ubicación activa · el punto azul eres tú.', false);
 }
 
 function onLocationError(err){
@@ -927,9 +977,9 @@ function startLocating(){
   }
   buzz(15);
   hasCenteredOnUser = false;
-  showLocateStatus('📍 Buscando tu ubicación…', false);
+  showLocateStatus('Buscando tu ubicación…', false);
   document.getElementById('locateBtn').classList.add('active');
-  document.getElementById('locateBtn').textContent = '📍 Ubicación activa';
+  setLocateBtnState('locate-fixed', 'Ubicación activa');
 
   watchId = navigator.geolocation.watchPosition(onLocationUpdate, onLocationError, {
     enableHighAccuracy: true,
@@ -942,7 +992,7 @@ function stopLocating(){
   if (watchId !== null) navigator.geolocation.clearWatch(watchId);
   watchId = null;
   document.getElementById('locateBtn').classList.remove('active');
-  document.getElementById('locateBtn').textContent = '📍 Mi ubicación';
+  setLocateBtnState('locate-fixed', 'Mi ubicación');
   if (userMarker) { map.removeLayer(userMarker); userMarker = null; }
   if (userAccuracyCircle) { map.removeLayer(userAccuracyCircle); userAccuracyCircle = null; }
 }
@@ -1072,26 +1122,28 @@ function renderStopsList(){
     const row = document.createElement('div');
     row.className = 'stop-row';
     row.innerHTML = `
-      <button class="stop-toggle w-full flex items-center justify-between px-4 py-3.5 text-left" data-idx="${i}">
+      <button class="stop-toggle w-full flex items-center justify-between px-4 py-4 text-left" data-idx="${i}">
         <span class="flex items-center gap-3">
           <span class="w-7 h-7 rounded-full flex items-center justify-center text-xs font-mono font-bold shrink-0"
-                style="background:var(--paper); border:2px solid var(--route-color); color:var(--route-color);">${i + 1}</span>
+                style="background:color-mix(in srgb, var(--route-color) 14%, var(--paper-2)); border:1.5px solid var(--route-color); color:var(--route-color);">${i + 1}</span>
           <span class="font-display font-semibold text-[15px]">${stop.name}</span>
         </span>
-        <span class="chevron text-sm" style="color:var(--ink-soft);">▾</span>
+        <i data-lucide="chevron-down" class="chevron shrink-0" style="color:var(--ink-soft);"></i>
       </button>
       <div class="stop-panel px-4">
         <p class="text-[13px] pb-3" style="color:var(--ink-soft);">${stop.desc}</p>
-        <div class="flex gap-2 mb-3">
-          <button class="ver-mapa-btn text-xs font-semibold px-3 py-2 rounded-full"
-                  style="background:var(--route-color); color:#fff;">📍 Ver en el mapa</button>
-          <button class="compartir-btn text-xs font-semibold px-3 py-2 rounded-full"
-                  style="background:#25D366; color:#fff;">📲 Compartir</button>
+        <div class="flex gap-2 mb-3.5">
+          <button class="ver-mapa-btn btn-lift text-xs font-semibold px-3.5 py-2 rounded-full flex items-center gap-1.5"
+                  style="background:var(--route-color); color:#fff;"><i data-lucide="map-pin" class="w-3.5 h-3.5"></i> Ver en el mapa</button>
+          <button class="compartir-btn btn-lift text-xs font-semibold px-3.5 py-2 rounded-full flex items-center gap-1.5"
+                  style="background:#25D366; color:#fff;"><i data-lucide="share-2" class="w-3.5 h-3.5"></i> Compartir</button>
         </div>
       </div>
     `;
     container.appendChild(row);
   });
+
+  if (window.lucide) lucide.createIcons();
 
   container.querySelectorAll('.stop-toggle').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -1175,7 +1227,7 @@ function shareStopWhatsApp(stop, route){
 document.getElementById('hornBtn').addEventListener('click', () => {
   buzz([30, 40, 30]);
   playHonk();
-  confettiBurst('#E07A1A', 70);
+  confettiBurst('#F5900C', 70);
 });
 
 /* ============================================================
@@ -1204,7 +1256,7 @@ installBtn.addEventListener('click', async () => {
 window.addEventListener('appinstalled', () => {
   installBtn.classList.add('hidden');
   installBtn.classList.remove('show');
-  confettiBurst('#3E7A47', 80);
+  confettiBurst('#1E9E5A', 80);
 });
 
 if ('serviceWorker' in navigator) {
@@ -1217,6 +1269,7 @@ if ('serviceWorker' in navigator) {
    INICIO
    ============================================================ */
 document.addEventListener('DOMContentLoaded', () => {
+  if (window.lucide) lucide.createIcons();
   initMap();
   renderStopsList();
 });
