@@ -142,9 +142,9 @@
 <!-- PANEL PRINCIPAL -->
 <div id="mainScreen" class="hidden min-h-screen flex flex-col items-center px-6 py-8 pb-28">
   <header class="text-center mb-6 w-full max-w-sm flex items-center justify-between gap-2">
-    <a href="index.html" aria-label="Volver al menú" class="btn-lift flex items-center justify-center w-9 h-9 rounded-full shrink-0" style="background:var(--paper-2); border:1px solid var(--border); color:var(--ink);">
+    <button id="backToPinBtn" aria-label="Volver a poner PIN" class="btn-lift flex items-center justify-center w-9 h-9 rounded-full shrink-0" style="background:var(--paper-2); border:1px solid var(--border); color:var(--ink);">
       <i data-lucide="arrow-left" class="w-4 h-4"></i>
-    </a>
+    </button>
     <div class="text-left flex-1">
       <h1 class="font-display font-semibold text-xl">Panel del Conductor</h1>
       <p class="text-sm" style="color:var(--ink-soft);">Ruta San Simón · R-18</p>
@@ -304,14 +304,17 @@ function tryPin(){
   }
 }
 
-document.getElementById('switchDriverBtn').addEventListener('click', () => {
+function goToPinScreen(){
   if (watchId !== null) stopSharing();
   localStorage.removeItem('rss_driver_id');
   currentDriver = null;
   mainScreen.classList.add('hidden');
   pinScreen.classList.remove('hidden');
   pinInput.value = '';
-});
+}
+
+document.getElementById('switchDriverBtn').addEventListener('click', goToPinScreen);
+document.getElementById('backToPinBtn').addEventListener('click', goToPinScreen);
 
 /* ============================================================
    NOMBRE EDITABLE DEL CONDUCTOR (se guarda en Firebase, se ve
