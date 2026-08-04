@@ -283,12 +283,6 @@ function unlock(driver){
 
 if (window.lucide) lucide.createIcons();
 
-const savedDriverId = localStorage.getItem('rss_driver_id');
-if (savedDriverId) {
-  const d = findDriverById(savedDriverId);
-  if (d) unlock(d);
-}
-
 document.getElementById('pinSubmit').addEventListener('click', tryPin);
 pinInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') tryPin(); });
 
@@ -600,6 +594,19 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch(() => { /* offline no disponible */ });
   });
+}
+
+/* ============================================================
+   AUTO-LOGIN si ya había una sesión guardada en este celular.
+   Va hasta el final del archivo a propósito: unlock() usa varias
+   variables (driverNameInput, toggleBtn, etc.) que se declaran
+   más abajo en el script, así que hay que esperar a que todo el
+   archivo ya se haya leído antes de llamar a unlock() aquí.
+   ============================================================ */
+const savedDriverId = localStorage.getItem('rss_driver_id');
+if (savedDriverId) {
+  const d = findDriverById(savedDriverId);
+  if (d) unlock(d);
 }
 </script>
 </body>
