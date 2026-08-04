@@ -34,7 +34,8 @@
    {
      "rules": {
        "driverLocation": { ".read": true, ".write": true },
-       "panicAlerts":     { ".read": true, ".write": true }
+       "panicAlerts":     { ".read": true, ".write": true },
+       "drivers":         { ".read": true, ".write": true }
      }
    }
    ============================================================ */
@@ -49,10 +50,36 @@ const firebaseConfig = {
   appId: "1:952247065643:web:1544ce12d74d3e32dd5e6e"
 };
 
-// PIN compartido para entrar al panel del conductor y al panel del
-// dueño. Cámbialo por uno que solo tú y Pedro conozcan (4-6 dígitos
-// o lo que quieras, es solo texto).
+// PIN del PANEL DEL DUEÑO (dueno.html). Cámbialo por uno que solo
+// tú conozcas.
 const PANEL_PIN = "1818";
+
+// ------------------------------------------------------------
+// CONDUCTORES — un PIN distinto para cada quien.
+// Cada conductor entra a conductor.html con SU PROPIO PIN y puede
+// editar su nombre desde ahí (el nombre se guarda en Firebase y se
+// ve reflejado automáticamente en el Panel del Dueño). Para
+// agregar, quitar o cambiar el PIN de un conductor, solo edita esta
+// lista y vuelve a subir este archivo — no hace falta tocar nada
+// más.
+// ------------------------------------------------------------
+const DRIVERS = [
+  { id: "conductor1",  pin: "1001", name: "Pedro" },
+  { id: "conductor2",  pin: "1002", name: "Conductor 2" },
+  { id: "conductor3",  pin: "1003", name: "Conductor 3" },
+  { id: "conductor4",  pin: "1004", name: "Conductor 4" },
+  { id: "conductor5",  pin: "1005", name: "Conductor 5" },
+  { id: "conductor6",  pin: "1006", name: "Conductor 6" },
+  { id: "conductor7",  pin: "1007", name: "Conductor 7" },
+  { id: "conductor8",  pin: "1008", name: "Conductor 8" },
+  { id: "conductor9",  pin: "1009", name: "Conductor 9" },
+  { id: "conductor10", pin: "1010", name: "Conductor 10" },
+  { id: "conductor11", pin: "1011", name: "Conductor 11" },
+  { id: "conductor12", pin: "1012", name: "Conductor 12" },
+  { id: "conductor13", pin: "1013", name: "Conductor 13" },
+  { id: "conductor14", pin: "1014", name: "Conductor 14" },
+  { id: "conductor15", pin: "1015", name: "Conductor 15" },
+];
 
 // Número de WhatsApp del dueño de la ruta para el botón de ayuda de
 // respaldo (código de país + número, sin espacios, sin "+").
