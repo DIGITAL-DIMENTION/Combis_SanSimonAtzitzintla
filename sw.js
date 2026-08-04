@@ -2,11 +2,13 @@
    Estrategia: network-first para el HTML (para no quedarte con datos viejos),
    cache-first para el resto (íconos, manifest, tiles ya vistos). */
 
-const CACHE_NAME = 'ruta-san-simon-v2';
+const CACHE_NAME = 'ruta-san-simon-v3';
 const APP_SHELL = [
   './',
   './index.html',
   './manifest.json',
+  './manifest-conductor.json',
+  './manifest-dueno.json',
   './icon-192.png',
   './icon-512.png',
   './firebase-config.js',
@@ -47,7 +49,7 @@ self.addEventListener('fetch', (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
           return res;
         })
-        .catch(() => caches.match('./index.html'))
+        .catch(() => caches.match(request).then((cached) => cached || caches.match('./index.html')))
     );
     return;
   }
