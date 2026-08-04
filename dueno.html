@@ -7,7 +7,14 @@
 <title>Panel del Dueño · Ruta San Simón (R-18)</title>
 <meta name="robots" content="noindex, nofollow">
 
+<!-- PWA -->
+<link rel="manifest" href="manifest-dueno.json">
 <link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Dueño R-18">
+
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -24,7 +31,7 @@
   :root{
     --paper:#F5EEDD; --paper-2:#EBE1C9; --ink:#241D14; --ink-soft:#5B5040;
     --talavera:#1C4E73; --agave:#3E7A47; --agave-dark:#2C5833;
-    --alerta:#B23A2E; --alerta-bg:#F6DED9; --border:#D8CBA6;
+    --alerta:#B23A2E; --alerta-bg:#F6DED9; --border:#D8CBA6; --cempasuchil:#E07A1A;
     --shadow: 0 2px 0 rgba(36,29,20,0.08);
   }
   *{ -webkit-tap-highlight-color: transparent; }
@@ -39,6 +46,9 @@
   .status-dot.on{ background:#2C9E4A; box-shadow:0 0 0 3px rgba(44,158,74,.25); }
   .status-dot.off{ background:var(--ink-soft); opacity:.5; }
 
+  .driver-row{ border-bottom:1px solid var(--border); }
+  .driver-row:last-child{ border-bottom:none; }
+
   .alert-card{ border:2px solid var(--alerta); background:var(--alerta-bg); border-radius:14px; }
   .alert-card.resolved{ border-color:var(--border); background:var(--paper-2); opacity:.7; }
 
@@ -47,6 +57,16 @@
     50%{ background-color:#F0AFA5; }
   }
   .alert-card.flashing{ animation: flash 1s ease-in-out 3; }
+
+  #alarmBar{ display:none; }
+  #alarmBar.show{ display:flex; }
+  @keyframes alarmPulse{
+    0%, 100%{ opacity:1; }
+    50%{ opacity:.6; }
+  }
+  #alarmBar.show{ animation: alarmPulse 1s ease-in-out infinite; }
+
+  #installBtn.show{ display:flex; }
 </style>
 </head>
 <body class="font-body pb-10">
@@ -65,27 +85,35 @@
   </div>
 </div>
 
+<!-- BARRA DE ALARMA (aparece cuando hay una alerta pendiente) -->
+<div id="alarmBar" class="fixed top-0 inset-x-0 z-[80] items-center justify-between gap-3 px-4 py-3" style="background:var(--alerta); color:#fff;">
+  <span class="font-display font-semibold text-sm">🆘 Alerta de ayuda activa</span>
+  <button id="silenceBtn" class="text-xs font-semibold px-3 py-1.5 rounded-full" style="background:rgba(255,255,255,.2);">Silenciar</button>
+</div>
+
 <!-- PANEL PRINCIPAL -->
 <div id="mainScreen" class="hidden max-w-md mx-auto px-4 pt-6 space-y-4">
-  <header class="text-center mb-2">
-    <h1 class="font-display font-semibold text-xl">Panel del Dueño</h1>
-    <p class="text-sm" style="color:var(--ink-soft);">Ruta San Simón · R-18</p>
+  <header class="flex items-center justify-between mb-2">
+    <div class="text-center flex-1">
+      <h1 class="font-display font-semibold text-xl">Panel del Dueño</h1>
+      <p class="text-sm" style="color:var(--ink-soft);">Ruta San Simón · R-18</p>
+    </div>
+    <button id="installBtn" aria-label="Instalar app" class="hidden items-center gap-1.5 px-3 h-9 rounded-full font-display font-semibold text-[12px] active:scale-95 transition-transform shrink-0" style="background:var(--cempasuchil); color:#fff;">
+      ⬇️ Instalar
+    </button>
   </header>
 
   <div id="firebaseWarning" class="hidden placard p-4 text-sm text-center" style="border-color:var(--alerta); background:var(--alerta-bg); color:var(--alerta);">
     Firebase no está configurado todavía (archivo firebase-config.js).
   </div>
 
-  <!-- ESTADO DEL CONDUCTOR -->
+  <!-- CONDUCTORES -->
   <section class="placard p-4">
-    <div class="flex items-center justify-between">
-      <h2 class="font-display font-semibold text-sm uppercase tracking-wide" style="color:var(--ink-soft);">Conductor</h2>
-      <span id="driverStatusBadge" class="flex items-center gap-1.5 text-xs font-semibold">
-        <span class="status-dot off"></span> <span id="driverStatusText">Sin conexión</span>
-      </span>
+    <div class="flex items-center justify-between mb-1 flex-wrap gap-1">
+      <h2 class="font-display font-semibold text-sm uppercase tracking-wide" style="color:var(--ink-soft);">Conductores</h2>
+      <span id="driversOnlineCount" class="text-[11px] font-mono" style="color:var(--ink-soft);">—</span>
     </div>
-    <p class="font-display font-semibold text-lg mt-1">👤 Pedro</p>
-    <p id="driverUpdatedText" class="text-xs font-mono mt-0.5" style="color:var(--ink-soft);">—</p>
+    <div id="driversList" class="divide-y" style="border-color:var(--border);"></div>
   </section>
 
   <!-- MAPA -->
@@ -108,13 +136,15 @@ const pinScreen = document.getElementById('pinScreen');
 const mainScreen = document.getElementById('mainScreen');
 const pinInput = document.getElementById('pinInput');
 const pinError = document.getElementById('pinError');
-let map, driverMarker;
+let map;
+const driverMarkers = {}; // driverId -> L.marker
 
 function unlock(){
   pinScreen.classList.add('hidden');
   mainScreen.classList.remove('hidden');
   initMap();
   initFirebaseListeners();
+  requestNotificationPermission();
 }
 
 if (localStorage.getItem('rss_panel_unlocked') === 'true') {
@@ -143,17 +173,21 @@ function initMap(){
     .addTo(map);
 }
 
-function driverIcon(){
+function driverIcon(route){
+  const color = route === 'secundaria' ? '#3E7A47' : (route === 'capilla' ? '#E07A1A' : '#2C9E4A');
   return L.divIcon({
     className: '',
-    html: `<div style="width:32px;height:32px;border-radius:50%;background:#2C9E4A;border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,.4);">🚐</div>`,
+    html: `<div style="width:32px;height:32px;border-radius:50%;background:${color};border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:16px;box-shadow:0 2px 6px rgba(0,0,0,.4);">🚐</div>`,
     iconSize: [32, 32],
     iconAnchor: [16, 16],
   });
 }
 
 /* ============================================================
-   FIREBASE: estado del conductor + alertas de pánico
+   ALARMA DE NOTIFICACIÓN
+   Suena repetidamente y muestra una notificación del navegador
+   mientras haya al menos una alerta "pendiente", hasta que el
+   dueño la marque como atendida o presione "Silenciar".
    ============================================================ */
 let audioCtx;
 function beep(){
@@ -167,7 +201,7 @@ function beep(){
       osc.frequency.value = 880;
       const t0 = audioCtx.currentTime + delay;
       gain.gain.setValueAtTime(0.0001, t0);
-      gain.gain.linearRampToValueAtTime(0.15, t0 + 0.02);
+      gain.gain.linearRampToValueAtTime(0.18, t0 + 0.02);
       gain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.25);
       osc.connect(gain).connect(audioCtx.destination);
       osc.start(t0);
@@ -176,8 +210,53 @@ function beep(){
   } catch(e) {}
 }
 
+let alarmIntervalId = null;
+let alarmSilenced = false;
+
+function requestNotificationPermission(){
+  if ('Notification' in window && Notification.permission === 'default') {
+    Notification.requestPermission().catch(() => {});
+  }
+}
+
+function showBrowserNotification(alert){
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try {
+    const n = new Notification('🆘 Alerta de ayuda · Ruta San Simón', {
+      body: (alert && alert.driverName ? alert.driverName : 'Un conductor') + ' necesita ayuda.',
+      tag: 'rss-panic-alert',
+      requireInteraction: true,
+    });
+    n.onclick = () => { window.focus(); n.close(); };
+  } catch (e) {}
+}
+
+function startAlarm(latestAlert){
+  document.getElementById('alarmBar').classList.add('show');
+  beep();
+  showBrowserNotification(latestAlert);
+  if (alarmIntervalId) return; // ya está sonando en bucle
+  alarmIntervalId = setInterval(() => { if (!alarmSilenced) beep(); }, 4000);
+}
+
+function stopAlarm(){
+  document.getElementById('alarmBar').classList.remove('show');
+  if (alarmIntervalId) { clearInterval(alarmIntervalId); alarmIntervalId = null; }
+  alarmSilenced = false;
+}
+
+document.getElementById('silenceBtn').addEventListener('click', () => {
+  alarmSilenced = true;
+  document.getElementById('alarmBar').classList.remove('show');
+});
+
+/* ============================================================
+   FIREBASE: conductores + alertas de pánico
+   ============================================================ */
 let seenAlertIds = new Set();
 let firstAlertsLoad = true;
+let driverLocations = {};  // id -> data
+let driverNames = {};      // id -> name
 
 function initFirebaseListeners(){
   if (typeof db === 'undefined' || !db) {
@@ -185,33 +264,18 @@ function initFirebaseListeners(){
     return;
   }
 
-  // --- Estado del conductor ---
-  db.ref('driverLocation/pedro').on('value', (snapshot) => {
-    const data = snapshot.val();
-    const badgeDot = document.querySelector('#driverStatusBadge .status-dot');
-    const statusText = document.getElementById('driverStatusText');
-    const updatedText = document.getElementById('driverUpdatedText');
+  // --- Ubicación / estado de cada conductor ---
+  db.ref('driverLocation').on('value', (snapshot) => {
+    driverLocations = snapshot.val() || {};
+    renderDrivers();
+    renderMapMarkers();
+  });
 
-    const isFresh = !!(data && data.active && data.updatedAt && (Date.now() - data.updatedAt < 2 * 60 * 1000));
-
-    if (isFresh) {
-      badgeDot.classList.remove('off'); badgeDot.classList.add('on');
-      statusText.textContent = 'En ruta';
-      updatedText.textContent = 'Última actualización: ' + new Date(data.updatedAt).toLocaleTimeString('es-MX');
-
-      const latlng = [data.lat, data.lng];
-      if (!driverMarker) {
-        driverMarker = L.marker(latlng, { icon: driverIcon() }).addTo(map);
-        map.setView(latlng, 15);
-      } else {
-        driverMarker.setLatLng(latlng);
-      }
-    } else {
-      badgeDot.classList.add('off'); badgeDot.classList.remove('on');
-      statusText.textContent = 'Sin conexión';
-      updatedText.textContent = data && data.updatedAt ? 'Última vez: ' + new Date(data.updatedAt).toLocaleString('es-MX') : '—';
-      if (driverMarker) { map.removeLayer(driverMarker); driverMarker = null; }
-    }
+  // --- Nombres editables de cada conductor ---
+  db.ref('drivers').on('value', (snapshot) => {
+    driverNames = snapshot.val() || {};
+    renderDrivers();
+    renderMapMarkers();
   });
 
   // --- Alertas de ayuda ---
@@ -222,16 +286,137 @@ function initFirebaseListeners(){
     });
     alerts.reverse(); // más recientes primero
 
-    const isNewPending = alerts.some(a => a.status === 'pendiente' && !seenAlertIds.has(a.id));
-    if (isNewPending && !firstAlertsLoad) {
-      beep();
+    const newPending = alerts.filter(a => a.status === 'pendiente' && !seenAlertIds.has(a.id));
+    if (newPending.length && !firstAlertsLoad) {
+      alarmSilenced = false;
+      startAlarm(newPending[0]);
       if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
     }
     alerts.forEach(a => seenAlertIds.add(a.id));
     firstAlertsLoad = false;
 
+    const anyPending = alerts.some(a => a.status === 'pendiente');
+    if (!anyPending) stopAlarm();
+
     renderAlerts(alerts);
   });
+}
+
+function driverDefaultName(id){
+  const list = (typeof DRIVERS !== 'undefined') ? DRIVERS : [];
+  const found = list.find(d => d.id === id);
+  return found ? found.name : id;
+}
+
+function driverDisplayName(id){
+  if (driverNames[id] && driverNames[id].name) return driverNames[id].name;
+  if (driverLocations[id] && driverLocations[id].driverName) return driverLocations[id].driverName;
+  return driverDefaultName(id);
+}
+
+function driverRouteFor(id){
+  if (driverNames[id] && driverNames[id].route) return driverNames[id].route;
+  if (driverLocations[id] && driverLocations[id].route) return driverLocations[id].route;
+  return null;
+}
+
+function routeLabel(route){
+  if (route === 'capilla') return 'Por Capilla';
+  if (route === 'secundaria') return 'Por Secundaria';
+  return 'Sin ramal asignado';
+}
+
+function routeColor(route){
+  if (route === 'capilla') return '#E07A1A';
+  if (route === 'secundaria') return '#3E7A47';
+  return 'var(--ink-soft)';
+}
+
+function allDriverIds(){
+  const ids = new Set();
+  const list = (typeof DRIVERS !== 'undefined') ? DRIVERS : [];
+  list.forEach(d => ids.add(d.id));
+  Object.keys(driverLocations).forEach(id => ids.add(id));
+  Object.keys(driverNames).forEach(id => ids.add(id));
+  return Array.from(ids);
+}
+
+function isDriverFresh(data){
+  return !!(data && data.active && data.updatedAt && (Date.now() - data.updatedAt < 2 * 60 * 1000));
+}
+
+function renderDrivers(){
+  const list = document.getElementById('driversList');
+  const ids = allDriverIds();
+  let onlineCount = 0;
+  let capillaCount = 0;
+  let secundariaCount = 0;
+  list.innerHTML = '';
+
+  ids.forEach((id) => {
+    const data = driverLocations[id];
+    const fresh = isDriverFresh(data);
+    if (fresh) {
+      onlineCount++;
+      const r = driverRouteFor(id);
+      if (r === 'capilla') capillaCount++;
+      else if (r === 'secundaria') secundariaCount++;
+    }
+    const name = driverDisplayName(id);
+    const updatedText = fresh
+      ? 'Última actualización: ' + new Date(data.updatedAt).toLocaleTimeString('es-MX')
+      : (data && data.updatedAt ? 'Última vez: ' + new Date(data.updatedAt).toLocaleString('es-MX') : 'Sin conexión aún');
+
+    const row = document.createElement('div');
+    row.className = 'driver-row py-2.5 flex items-center justify-between gap-2';
+    const route = driverRouteFor(id);
+    row.innerHTML = `
+      <div class="min-w-0">
+        <p class="font-display font-semibold text-sm truncate">👤 ${name}</p>
+        <p class="text-[11px] font-mono truncate" style="color:var(--ink-soft);">${updatedText}</p>
+        <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full mt-1 inline-block" style="background:${routeColor(route)}; color:#fff;">${routeLabel(route)}</span>
+      </div>
+      <span class="flex items-center gap-1.5 text-xs font-semibold shrink-0">
+        <span class="status-dot ${fresh ? 'on' : 'off'}"></span> ${fresh ? 'En ruta' : 'Sin conexión'}
+      </span>
+    `;
+    list.appendChild(row);
+  });
+
+  document.getElementById('driversOnlineCount').textContent =
+    onlineCount + ' en ruta · ' + capillaCount + ' Capilla · ' + secundariaCount + ' Sec.';
+}
+
+function renderMapMarkers(){
+  if (!map) return;
+  const ids = allDriverIds();
+
+  ids.forEach((id) => {
+    const data = driverLocations[id];
+    const fresh = isDriverFresh(data);
+
+    if (fresh) {
+      const latlng = [data.lat, data.lng];
+      const name = driverDisplayName(id);
+      const route = driverRouteFor(id);
+      const popupText = `${name} · ${routeLabel(route)}`;
+      if (!driverMarkers[id]) {
+        driverMarkers[id] = L.marker(latlng, { icon: driverIcon(route) }).addTo(map).bindPopup(popupText);
+      } else {
+        driverMarkers[id].setIcon(driverIcon(route)).setLatLng(latlng).setPopupContent(popupText);
+      }
+    } else if (driverMarkers[id]) {
+      map.removeLayer(driverMarkers[id]);
+      delete driverMarkers[id];
+    }
+  });
+
+  // centra el mapa la primera vez que aparece algún conductor activo
+  const activeLatLngs = Object.values(driverMarkers).map(m => m.getLatLng());
+  if (activeLatLngs.length === 1 && !map._rssCentered) {
+    map.setView(activeLatLngs[0], 15);
+    map._rssCentered = true;
+  }
 }
 
 function renderAlerts(alerts){
@@ -249,6 +434,8 @@ function renderAlerts(alerts){
     const isPending = a.status === 'pendiente';
     const time = a.createdAt ? new Date(a.createdAt).toLocaleString('es-MX') : '—';
     const mapsUrl = (a.lat != null && a.lng != null) ? `https://www.google.com/maps?q=${a.lat},${a.lng}` : null;
+    const driverName = a.driverName || (a.driverId ? driverDisplayName(a.driverId) : 'Conductor');
+    const alertRoute = a.route || (a.driverId ? driverRouteFor(a.driverId) : null);
 
     const card = document.createElement('div');
     card.className = 'alert-card p-3.5' + (isPending ? '' : ' resolved');
@@ -256,9 +443,9 @@ function renderAlerts(alerts){
       <div class="flex items-start justify-between gap-2">
         <div>
           <p class="font-display font-semibold text-sm" style="color:${isPending ? 'var(--alerta)' : 'var(--ink-soft)'};">
-            ${isPending ? '🆘 Alerta activa' : '✅ Atendida'}
+            ${isPending ? '🆘 Alerta activa' : '✅ Atendida'} · ${driverName}
           </p>
-          <p class="text-xs font-mono mt-0.5" style="color:var(--ink-soft);">${time}${a.route ? ' · ramal ' + a.route : ''}</p>
+          <p class="text-xs font-mono mt-0.5" style="color:var(--ink-soft);">${time}${alertRoute ? ' · ' + routeLabel(alertRoute) : ''}</p>
         </div>
       </div>
       <div class="flex gap-2 mt-3">
@@ -274,6 +461,39 @@ function renderAlerts(alerts){
       const id = btn.dataset.id;
       db.ref('panicAlerts/' + id).update({ status: 'atendida' }).catch(() => {});
     });
+  });
+}
+
+/* ============================================================
+   PWA: INSTALACIÓN Y SERVICE WORKER
+   ============================================================ */
+let deferredInstallPrompt;
+const installBtn = document.getElementById('installBtn');
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  installBtn.classList.remove('hidden');
+  installBtn.classList.add('show');
+});
+
+installBtn.addEventListener('click', async () => {
+  if (!deferredInstallPrompt) return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt = null;
+  installBtn.classList.add('hidden');
+  installBtn.classList.remove('show');
+});
+
+window.addEventListener('appinstalled', () => {
+  installBtn.classList.add('hidden');
+  installBtn.classList.remove('show');
+});
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch(() => { /* offline no disponible */ });
   });
 }
 </script>
